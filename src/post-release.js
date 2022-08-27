@@ -1,10 +1,14 @@
 // @ts-check
 const core = require("@actions/core");
 const github = require("@actions/github");
-const { WebClient: SlackWebClient } = require("@slack/web-api");
 const { Config, octokit } = require("./shared.js");
 
 exports.executePostRelease = async function executePostRelease() {
+  /**
+   * Precheck
+   * Check if the pull request has a release label, targeting main branch, and if it was merged
+   */
+
   if (github.context.eventName !== "pull_request") {
     console.log(`Not a pull request merge. Exiting...`);
     return;
@@ -23,7 +27,7 @@ exports.executePostRelease = async function executePostRelease() {
   });
 
   if (pullRequest.base.ref !== Config.prodBranch) {
-    console.log("Request does not merge to main_branch. Exiting...");
+    console.log("PR does not merge to main_branch. Exiting...");
     return;
   }
 
@@ -37,12 +41,13 @@ exports.executePostRelease = async function executePostRelease() {
     return;
   }
 
-  // release branch always has the format
-  // `release/${version}`
   const releaseBranch = pullRequest.head.ref;
   const version = releaseBranch.substring("release/".length);
 
-  // Merge back to develop branch
+  /**
+   * Merging the release branch back to the develop branch if needed
+   */
+
   const { data: compareCommitsResult } =
     await octokit.rest.repos.compareCommits({
       ...Config.repo,
@@ -81,31 +86,66 @@ exports.executePostRelease = async function executePostRelease() {
     );
   }
 
-  // Create a release
-  console.log(`Creating a release`);
-  const { data: release } = await octokit.rest.repos.createRelease({
+  /**
+   * Creating a release
+   */
+
+  console.log(`Creating release ${version}`);
+  const { data: latestRelease } = await octokit.rest.repos
+    .getLatestRelease(Config.repo)
+    .catch(() => ({ data: null }));
+
+  const { data: releaseNotes } = await octokit.rest.repos.generateReleaseNotes({
+    ...Config.repo,
+    tag_name: version,
+    target_commitish: Config.developBranch,
+    previous_tag_name: latestRelease?.tag_name,
+  });
+
+  await octokit.rest.repos.createRelease({
     ...Config.repo,
     tag_name: version,
     target_commitish: Config.prodBranch,
-    generate_release_notes: true,
+    body: releaseNotes.body,
   });
 
-  // Post to slack if needed
-  const slackChannel = core.getInput("slack_channel");
-  if (slackChannel) {
-    console.log(`Posting to slack channel #${slackChannel}`);
+  /**
+   * Slack integration
+   */
+
+  const slackStr = core.getInput("slack");
+  if (slackStr) {
+    const slackOpts = JSON.parse("slack");
+
+    console.log(`Posting to slack channel #${slackOpts.channel}`);
     const slackToken = process.env.SLACK_TOKEN;
     if (!slackToken) throw new Error("process.env.SLACK_TOKEN is not defined");
-    const slackWebClient = new SlackWebClient(slackToken);
 
-    await slackWebClient.chat.postMessage({
-      text: `*Release ${version} to ${Config.repo.owner}/${Config.repo.repo}*
+    const username_mapping = slackOpts["username_mapping"] || {};
 
-${release.body}`,
-      channel: slackChannel,
-      icon_url: "https://avatars.githubusercontent.com/in/15368?s=88&v=4",
+    let releaseBody = releaseNotes.body;
+
+    for (const [username, slackUserId] of Object.entries(username_mapping)) {
+      releaseBody = releaseBody.replaceAll(`@${username}`, `<@${slackUserId}>`);
+    }
+
+    await fetch(`https://slack.com/api/chat.postMessage`, {
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${slackToken}`,
+      },
+      body: JSON.stringify({
+        text: `*[Release ${version} to ${Config.repo.owner}/${Config.repo.repo}](${pullRequest.url})*
+
+        ${releaseBody}`,
+        channel: slackOpts.channel,
+        icon_url: "https://avatars.githubusercontent.com/in/15368?s=88&v=4",
+      }),
+    }).then((res) => {
+      if (!res.ok)
+        throw new Error(
+          `Request to slack failed with status code ${res.status}`
+        );
     });
   }
-
-  // Merge back to develop branch
 };
