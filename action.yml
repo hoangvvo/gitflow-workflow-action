@@ -1,5 +1,5 @@
-name: "Git Workflow Release Action"
-description: "Create a Deploy to Production pull request with changelog"
+name: "Git Workflow Action"
+description: "Create PR for release + Create GH release and send Slack message on merge"
 
 inputs:
   version:
@@ -12,9 +12,10 @@ inputs:
   main_branch:
     description: The branch that would release to production
     required: true
-  slack_channel:
-    description: The slack channel to post the release message to
+  slack:
+    description: The slack options (channel, name mapping)
     required: false
+
 runs:
   using: "node16"
   main: "dist/index.js"
