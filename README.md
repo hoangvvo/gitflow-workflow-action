@@ -74,7 +74,30 @@ You should have your own deployment workflow as this action will not handle it. 
 
 ### Post to Slack
 
-It is often that an anouncement is made to a Slack channel after a release. To do so, specify `SLACK_TOKEN` env and `slack_channel` input.
+It is often that an anouncement is made to a Slack channel after a release. To do so, specify `SLACK_TOKEN` env and `slack` input.
+
+```yaml
+jobs:
+  post_release:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    name: Post Release
+    steps:
+      - name: gitflow-workflow-action post-release
+        uses: hoangvvo/gitflow-workflow-action@v0
+        with:
+          develop_branch: "develop"
+          main_branch: "main"
+          slack: >
+            {
+              "channel": "hoang-test",
+              "username_mapping": {
+                "hoangvvo": "U03B3E4UPV3"
+              }
+            }
+        env:
+          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+```
 
 ## License
 

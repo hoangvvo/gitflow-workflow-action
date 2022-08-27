@@ -9,12 +9,18 @@ exports.createReleasePR = async function createReleasePR() {
   if (!version) throw new Error(`Missing input.version`);
 
   console.log(`Generating release notes`);
+
   // developBranch and mainBranch are almost identical
   // so we can use developBranch for ahead-of-time release note
+  const { data: latestRelease } = await octokit.rest.repos
+    .getLatestRelease(Config.repo)
+    .catch(() => ({ data: null }));
+
   const { data: releaseNotes } = await octokit.rest.repos.generateReleaseNotes({
     ...Config.repo,
     tag_name: version,
     target_commitish: Config.developBranch,
+    previous_tag_name: latestRelease?.tag_name,
   });
 
   console.log(`Creating release branch`);
