@@ -107,6 +107,7 @@ exports.executePostRelease = async function executePostRelease() {
     ...Config.repo,
     tag_name: version,
     target_commitish: Config.prodBranch,
+    name: releaseNotes.name,
     body: releaseNotes.body,
   });
 
@@ -116,8 +117,12 @@ exports.executePostRelease = async function executePostRelease() {
 
   const slackStr = core.getInput("slack");
   if (slackStr) {
-    const slackOpts = JSON.parse("slack");
-
+    let slackOpts;
+    try {
+      slackOpts = JSON.parse(slackStr);
+    } catch (err) {
+      throw new Error(`Could not parse ${slackStr}`);
+    }
     console.log(`Posting to slack channel #${slackOpts.channel}`);
     const slackToken = process.env.SLACK_TOKEN;
     if (!slackToken) throw new Error("process.env.SLACK_TOKEN is not defined");
