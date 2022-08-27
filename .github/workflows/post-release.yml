@@ -1,0 +1,29 @@
+on:
+  pull_request:
+    branches:
+      - main
+      - release/*
+    types:
+      - closed
+
+name: Finalize release
+
+jobs:
+  post_release:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    name: Post Release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: gitflow-workflow-action post-release
+        uses: ./ # Uses an action in the root directory
+        with:
+          develop_branch: "develop"
+          main_branch: "main"
+          # if you want to post to slack
+          slack_channel: "hoang-test"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # if you want to post to slack
+          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}

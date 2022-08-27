@@ -1,0 +1,20 @@
+name: "Git Workflow Release Action"
+description: "Create a Deploy to Production pull request with changelog"
+
+inputs:
+  version:
+    description: The version to be released (semver)
+    required: false
+    default: ""
+  develop_branch:
+    description: The branch to be merged to production branch
+    required: true
+  main_branch:
+    description: The branch that would release to production
+    required: true
+  slack_channel:
+    description: The slack channel to post the release message to
+    required: false
+runs:
+  using: "node16"
+  main: "dist/index.js"
