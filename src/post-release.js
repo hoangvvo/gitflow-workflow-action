@@ -1,6 +1,7 @@
 // @ts-check
 const core = require("@actions/core");
 const github = require("@actions/github");
+const { WebClient: SlackWebClient } = require("@slack/web-api");
 const { Config, octokit } = require("./shared.js");
 
 exports.executePostRelease = async function executePostRelease() {
@@ -121,6 +122,8 @@ exports.executePostRelease = async function executePostRelease() {
     const slackToken = process.env.SLACK_TOKEN;
     if (!slackToken) throw new Error("process.env.SLACK_TOKEN is not defined");
 
+    const slackWebClient = new SlackWebClient(slackToken);
+
     const username_mapping = slackOpts["username_mapping"] || {};
 
     let releaseBody = releaseNotes.body;
@@ -129,23 +132,12 @@ exports.executePostRelease = async function executePostRelease() {
       releaseBody = releaseBody.replaceAll(`@${username}`, `<@${slackUserId}>`);
     }
 
-    await fetch(`https://slack.com/api/chat.postMessage`, {
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${slackToken}`,
-      },
-      body: JSON.stringify({
-        text: `*[Release ${version} to ${Config.repo.owner}/${Config.repo.repo}](${pullRequest.url})*
+    await slackWebClient.chat.postMessage({
+      text: `*[Release ${version} to ${Config.repo.owner}/${Config.repo.repo}](${pullRequest.url})*
 
-        ${releaseBody}`,
-        channel: slackOpts.channel,
-        icon_url: "https://avatars.githubusercontent.com/in/15368?s=88&v=4",
-      }),
-    }).then((res) => {
-      if (!res.ok)
-        throw new Error(
-          `Request to slack failed with status code ${res.status}`
-        );
+      ${releaseBody}`,
+      channel: slackOpts.channel,
+      icon_url: "https://avatars.githubusercontent.com/in/15368?s=88&v=4",
     });
   }
 };
