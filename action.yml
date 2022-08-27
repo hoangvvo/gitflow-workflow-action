@@ -1,4 +1,4 @@
-name: "Git Workflow Action"
+name: "Gitflow Workflow Action"
 description: "Create PR for release + Create GH release and send Slack message on merge"
 
 inputs:
