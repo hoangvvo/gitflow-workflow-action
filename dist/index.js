@@ -19224,9 +19224,9 @@ exports.executePostRelease = async function executePostRelease() {
     }
 
     await slackWebClient.chat.postMessage({
-      text: `*[Release ${version} to ${Config.repo.owner}/${Config.repo.repo}](${pullRequest.url})*
+      text: `<${pullRequest.url}|*Release ${version} to ${Config.repo.owner}/${Config.repo.repo}*>
 
-      ${releaseBody}`,
+${releaseBody}`,
       channel: slackOpts.channel,
       icon_url: "https://avatars.githubusercontent.com/in/15368?s=88&v=4",
     });
