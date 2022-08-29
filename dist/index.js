@@ -19272,6 +19272,8 @@ exports.executeOnRelease = async function executeOnRelease() {
       body: releaseNotes.body,
     });
 
+    console.log(`on-release: success`);
+
     return;
   } else if (releaseCandidateType === "hotfix") {
     /**
@@ -19313,6 +19315,8 @@ exports.executeOnRelease = async function executeOnRelease() {
       body: releaseNotes.body,
     });
 
+    console.log(`on-release: success`);
+
     return;
   }
 };
@@ -19330,6 +19334,8 @@ exports.executePostRelease = async function executePostRelease() {
      */
     await sendToSlack(slackInput, release);
   }
+
+  console.log(`post-release: success`);
 };
 
 
@@ -19340,15 +19346,16 @@ exports.executePostRelease = async function executePostRelease() {
 
 // @ts-check
 const core = __nccwpck_require__(2186);
+const assert = __nccwpck_require__(9491);
 const { Config, octokit } = __nccwpck_require__(9297);
 
 exports.createReleasePR = async function createReleasePR() {
   const version = core.getInput("version");
 
-  console.log(`Checking release version`);
-  if (!version) throw new Error(`Missing input.version`);
+  console.log(`create_release: Checking release version`);
+  assert(version, "input.version is not defined");
 
-  console.log(`Generating release notes`);
+  console.log(`create_release: Generating release notes`);
 
   // developBranch and mainBranch are almost identical
   // so we can use developBranch for ahead-of-time release note
@@ -19363,7 +19370,7 @@ exports.createReleasePR = async function createReleasePR() {
     previous_tag_name: latestRelease?.tag_name,
   });
 
-  console.log(`Creating release branch`);
+  console.log(`create_release: Creating release branch`);
   const releaseBranch = `release/${version}`;
 
   const developBranchSha = (
@@ -19380,7 +19387,7 @@ exports.createReleasePR = async function createReleasePR() {
     sha: developBranchSha,
   });
 
-  console.log(`Creating Pull Request`);
+  console.log(`create_release: Creating Pull Request`);
 
   const { data: pullRequest } = await octokit.rest.pulls.create({
     ...Config.repo,
@@ -19391,7 +19398,9 @@ exports.createReleasePR = async function createReleasePR() {
     maintainer_can_modify: false,
   });
 
-  console.log(`Pull request has been created at ${pullRequest.url}`);
+  console.log(
+    `create_release: Pull request has been created at ${pullRequest.url}`
+  );
 };
 
 

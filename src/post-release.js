@@ -66,6 +66,8 @@ exports.executeOnRelease = async function executeOnRelease() {
       body: releaseNotes.body,
     });
 
+    console.log(`on-release: success`);
+
     return;
   } else if (releaseCandidateType === "hotfix") {
     /**
@@ -107,6 +109,8 @@ exports.executeOnRelease = async function executeOnRelease() {
       body: releaseNotes.body,
     });
 
+    console.log(`on-release: success`);
+
     return;
   }
 };
@@ -124,4 +128,6 @@ exports.executePostRelease = async function executePostRelease() {
      */
     await sendToSlack(slackInput, release);
   }
+
+  console.log(`post-release: success`);
 };
