@@ -3,6 +3,7 @@ const github = require("@actions/github");
 const assert = require("assert");
 const { Constants } = require("./constants");
 const { octokit, Config } = require("./shared");
+const { isReleaseCandidate } = require("./utils");
 
 exports.pullRequestAutoLabel = async function pullRequestAutoLabel() {
   const pullRequestNumber = github.context.payload.pull_request?.number;
@@ -43,17 +44,12 @@ exports.pullRequestLabelExplainer = async function labelExplainer() {
     pull_number: pullRequestNumber,
   });
 
-  if (pullRequest.base.ref !== Config.prodBranch) {
-    console.log(
-      `label-explainer: ${pullRequestNumber} does not merge to main_branch. Exiting...`
-    );
-    return;
+  if (isReleaseCandidate(pullRequest)) {
+    await octokit.rest.issues.createComment({
+      ...Config.repo,
+      issue_number: pullRequestNumber,
+      body: `Merging this pull request will trigger Gitflow release actions. A release would be created and this branch would be merged back to ${Config.developBranch} if needed.
+  See [Gitflow Workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow) for more details.`,
+    });
   }
-
-  await octokit.rest.issues.createComment({
-    ...Config.repo,
-    issue_number: pullRequestNumber,
-    body: `Merging this pull request will trigger Gitflow release actions. A release would be created and this branch would be merged back to ${Config.developBranch} if needed.
-See [Gitflow Workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow) for more details.`,
-  });
 };
