@@ -52,7 +52,7 @@ on:
       - labeled
   release:
     types:
-      - created
+      - published
 
 name: Release workflows
 
