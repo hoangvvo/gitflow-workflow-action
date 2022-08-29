@@ -16,7 +16,7 @@ jobs:
       # you must check out the repository
       - name: Checkout
         uses: actions/checkout@v3
-      - name: gitflow-workflow-action pre-release
+      - name: gitflow-workflow-action create release
         uses: ./
         with:
           develop_branch: "develop"

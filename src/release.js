@@ -51,11 +51,5 @@ exports.createReleasePR = async function createReleasePR() {
     maintainer_can_modify: false,
   });
 
-  await octokit.rest.issues.addLabels({
-    ...Config.repo,
-    issue_number: pullRequest.number,
-    labels: ["release"],
-  });
-
   console.log(`Pull request has been created at ${pullRequest.url}`);
 };
