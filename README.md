@@ -1,39 +1,18 @@
 # gitflow-workflow-action
 
-A GitHub actions that automate the [Gitflow workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow) where one has a `develop` branch for continuous development and a `production` branch that would automatically deploy to production. In between that, a `release` branch is created to perform preparation tasks (such as bump package.json version for Node project) before being merged to `production` branch.
+A GitHub actions that automate the [Gitflow workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow) where one has a `develop` branch for continuous development and a `main` (production) branch that would automatically deploy to production. In between that, a `release` branch is created from `develop` to perform release preparation tasks before being merged to `main` branch. Occasionally, a `hotfix` branch is created from `main` for hot fixes.
 
-![Git Workflow](https://user-images.githubusercontent.com/40987398/187031062-099ef39e-9827-410c-851e-701be21f6cf2.svg)
+![Gitflow](https://user-images.githubusercontent.com/40987398/187112231-30c0f1f1-8153-44f7-82b3-df6ff475e525.svg)
 
-Create `.github/workflows/post-release.yml`
+## Create "Deploy to production" PR
 
-```yaml
-on:
-  pull_request:
-    branches:
-      - main
-    types:
-      - closed
+![image](https://user-images.githubusercontent.com/40987398/187032548-b51992fa-ae11-48e4-a4c7-1cd815d173f7.png)
 
-jobs:
-  post_release:
-    if: github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
-    name: Post Release
-    steps:
-      - name: gitflow-workflow-action post-release
-        uses: ./ # Uses an action in the root directory
-        with:
-          develop_branch: "develop"
-          main_branch: "main"
-          # if you want to post to slack
-          slack_channel: "feature-rollout"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # if you want to post to slack
-          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
-```
+We can add a workflow that creates a PR for `release`. It will create a PR with release note that contains all the new changes in the body. The new branch would be called `release/x.y.z`.
 
-Create `.github/workflows/pre-release.yml`
+This basically "freezes" the `develop` branch for releases. Other PRs can be merged to `develop` during the `release` branch lifetime without affecting it.
+
+Create `.github/workflows/create-release.yml`
 
 ```yaml
 on:
@@ -42,14 +21,16 @@ on:
       version:
         type: string
         required: true
-        description: "semver version to release"
+        description: "Version to release"
+
+name: Create release
 
 jobs:
   pre_release:
     runs-on: ubuntu-latest
     steps:
-      - name: gitflow-workflow-action pre-release
-        uses: ./
+      - name: gitflow-workflow-action create release
+        uses: hoangvvo/gitflow-workflow-action
         with:
           develop_branch: "develop"
           main_branch: "main"
@@ -58,33 +39,53 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-This action does two things:
+## Workflows for release lifecycle
 
-## Create "Deploy to production" PR dispatchable workflow
+Create `.github/workflows/post-release.yml`
 
-![image](https://user-images.githubusercontent.com/40987398/187032548-b51992fa-ae11-48e4-a4c7-1cd815d173f7.png)
+```yaml
+on:
+  pull_request:
+    types:
+      - opened
+      - closed
+      - labeled
+  release:
+    types:
+      - created
 
-This will create a PR that is meant to deploy to `production` branch. It will create a release note that contains all the new changes to the `develop` branch.
+name: Release workflows
 
-Then, it will create a new branch called `release/x.y.z` and create a PR from it. The reason why we do so is because we do not want new changes to `develop` to "sneak in" after the PR is created.
+jobs:
+  release_workflow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: gitflow-workflow-action release workflows
+        uses: hoangvvo/gitflow-workflow-action
+        with:
+          develop_branch: "develop"
+          main_branch: "main"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
 
-## Post-release hook
+This workflow does several things:
 
-You should have your own deployment workflow as this action will not handle it. However, it completes the gitflow workflow (merge from `release` back to `develop`) and provides helpful actions like Post message to Slack.
+- Autolabel `release` and `hotfix` according to the branch name.
+- If the PR is labelled `release` or `hotfix` and merged to `main`, it will create a release, merge back to `develop` branch, and trigger integrations. This is the process in Gitflow.
 
-### Post to Slack
+### Integration: Post to Slack
 
 It is often that an anouncement is made to a Slack channel after a release. To do so, specify `SLACK_TOKEN` env and `slack` input.
 
 ```yaml
 jobs:
-  post_release:
+  release_workflow:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-    name: Post Release
     steps:
-      - name: gitflow-workflow-action post-release
-        uses: hoangvvo/gitflow-workflow-action@v0
+      - name: gitflow-workflow-action release workflows
+        uses: hoangvvo/gitflow-workflow-action
         with:
           develop_branch: "develop"
           main_branch: "main"
