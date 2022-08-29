@@ -19147,6 +19147,7 @@ const github = __nccwpck_require__(5438);
 const assert = __nccwpck_require__(9491);
 const { Constants } = __nccwpck_require__(4438);
 const { octokit, Config } = __nccwpck_require__(9297);
+const { isReleaseCandidate } = __nccwpck_require__(1608);
 
 exports.pullRequestAutoLabel = async function pullRequestAutoLabel() {
   const pullRequestNumber = github.context.payload.pull_request?.number;
@@ -19187,19 +19188,14 @@ exports.pullRequestLabelExplainer = async function labelExplainer() {
     pull_number: pullRequestNumber,
   });
 
-  if (pullRequest.base.ref !== Config.prodBranch) {
-    console.log(
-      `label-explainer: ${pullRequestNumber} does not merge to main_branch. Exiting...`
-    );
-    return;
+  if (isReleaseCandidate(pullRequest)) {
+    await octokit.rest.issues.createComment({
+      ...Config.repo,
+      issue_number: pullRequestNumber,
+      body: `Merging this pull request will trigger Gitflow release actions. A release would be created and this branch would be merged back to ${Config.developBranch} if needed.
+  See [Gitflow Workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow) for more details.`,
+    });
   }
-
-  await octokit.rest.issues.createComment({
-    ...Config.repo,
-    issue_number: pullRequestNumber,
-    body: `Merging this pull request will trigger Gitflow release actions. A release would be created and this branch would be merged back to ${Config.developBranch} if needed.
-See [Gitflow Workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow) for more details.`,
-  });
 };
 
 
@@ -19212,10 +19208,9 @@ See [Gitflow Workflow](https://www.atlassian.com/git/tutorials/comparing-workflo
 const core = __nccwpck_require__(2186);
 const github = __nccwpck_require__(5438);
 const assert = __nccwpck_require__(9491);
-const { Constants } = __nccwpck_require__(4438);
 const { sendToSlack } = __nccwpck_require__(3738);
 const { Config, octokit } = __nccwpck_require__(9297);
-const { tryMerge } = __nccwpck_require__(1608);
+const { tryMerge, isReleaseCandidate } = __nccwpck_require__(1608);
 
 exports.executeOnRelease = async function executeOnRelease() {
   if (!github.context.payload.pull_request?.merged) {
@@ -19237,16 +19232,12 @@ exports.executeOnRelease = async function executeOnRelease() {
     pull_number: pullRequestNumber,
   });
 
-  if (pullRequest.base.ref !== Config.prodBranch) {
-    console.log(
-      `on-release: ${pullRequestNumber} does not merge to main_branch. Exiting...`
-    );
-    return;
-  }
+  const releaseCandidateType = isReleaseCandidate(pullRequest, true);
+  if (!releaseCandidateType) return;
 
   const currentBranch = pullRequest.head.ref;
 
-  if (pullRequest.labels.some((label) => label.name === Constants.Release)) {
+  if (releaseCandidateType === "release") {
     /**
      * Creating a release
      */
@@ -19282,15 +19273,10 @@ exports.executeOnRelease = async function executeOnRelease() {
     });
 
     return;
-  } else if (
-    pullRequest.labels.some((label) => label.name === Constants.Hotfix)
-  ) {
+  } else if (releaseCandidateType === "hotfix") {
     /**
-     * Merging the hotfix branch back to the develop branch if needed
+     * Creating a hotfix release
      */
-    console.log(`on-release: hotfix: Execute merge workflow`);
-    await tryMerge(currentBranch, Config.developBranch);
-
     const now = pullRequest.merged_at
       ? new Date(pullRequest.merged_at)
       : new Date();
@@ -19299,6 +19285,12 @@ exports.executeOnRelease = async function executeOnRelease() {
     ).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(
       now.getHours()
     ).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
+
+    /**
+     * Merging the hotfix branch back to the develop branch if needed
+     */
+    console.log(`on-release: hotfix: Execute merge workflow`);
+    await tryMerge(currentBranch, Config.developBranch);
 
     const { data: latestRelease } = await octokit.rest.repos
       .getLatestRelease(Config.repo)
@@ -19321,11 +19313,6 @@ exports.executeOnRelease = async function executeOnRelease() {
       body: releaseNotes.body,
     });
 
-    return;
-  } else {
-    console.log(
-      `on-release: pull request does not have either ${Constants.Release} or ${Constants.Hotfix} labels. Exiting...`
-    );
     return;
   }
 };
@@ -19436,8 +19423,14 @@ exports.Config = {
 /***/ 1608:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
+const { Constants } = __nccwpck_require__(4438);
 const { Config, octokit } = __nccwpck_require__(9297);
 
+/**
+ *
+ * @param {string} headBranch
+ * @param {string} baseBranch
+ */
 exports.tryMerge = async function tryMerge(headBranch, baseBranch) {
   const { data: compareCommitsResult } =
     await octokit.rest.repos.compareCommits({
@@ -19477,6 +19470,36 @@ See [Gitflow Workflow](https://www.atlassian.com/git/tutorials/comparing-workflo
       `${headBranch} branch is already up to date with ${baseBranch} branch.`
     );
   }
+};
+
+/**
+ *
+ * @param {import("@octokit/plugin-rest-endpoint-methods").RestEndpointMethodTypes["pulls"]["get"]["response"]["data"]} pullRequest
+ */
+exports.isReleaseCandidate = function isReleaseCandidate(
+  pullRequest,
+  shouldLog = false
+) {
+  if (pullRequest.base.ref !== Config.prodBranch) {
+    if (shouldLog)
+      console.log(
+        `on-release: ${pullRequest.number} does not merge to main_branch. Exiting...`
+      );
+    return false;
+  }
+
+  if (pullRequest.labels.some((label) => label.name === Constants.Release)) {
+    return "release";
+  }
+
+  if (pullRequest.labels.some((label) => label.name === Constants.Hotfix))
+    return "hotfix";
+
+  if (shouldLog)
+    console.log(
+      `on-release: pull request does not have either ${Constants.Release} or ${Constants.Hotfix} labels. Exiting...`
+    );
+  return false;
 };
 
 
