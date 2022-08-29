@@ -1,16 +1,16 @@
-name: "Git Workflow Action"
+name: "Gitflow Workflow Action"
 description: "Create PR for release + Create GH release and send Slack message on merge"
 
 inputs:
   version:
-    description: The version to be released (semver)
+    description: The version to be released
     required: false
     default: ""
   develop_branch:
-    description: The branch to be merged to production branch
+    description: The branch used for development
     required: true
   main_branch:
-    description: The branch that would release to production
+    description: The branch used for production
     required: true
   slack:
     description: The slack options (channel, name mapping)

@@ -74,6 +74,8 @@ This workflow does several things:
 - Autolabel `release` and `hotfix` according to the branch name.
 - If the PR is labelled `release` or `hotfix` and merged to `main`, it will create a release, merge back to `develop` branch, and trigger integrations. This is the process in Gitflow.
 
+Note: It does not handle the deployment process. That is for your team to implement separately.
+
 ### Integration: Post to Slack
 
 It is often that an anouncement is made to a Slack channel after a release. To do so, specify `SLACK_TOKEN` env and `slack` input.
