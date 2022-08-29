@@ -46,10 +46,10 @@ exports.executeOnRelease = async function executeOnRelease() {
     /**
      * Merging the release branch back to the develop branch if needed
      */
-    console.log(`on-release:release(${version}): Execute merge workflow`);
+    console.log(`on-release: release(${version}): Execute merge workflow`);
     await tryMerge(currentBranch, Config.developBranch);
 
-    console.log(`on-release:release(${version}): Generating release notes`);
+    console.log(`on-release: release(${version}): Generating release notes`);
     const { data: latestRelease } = await octokit.rest.repos
       .getLatestRelease(Config.repo)
       .catch(() => ({ data: null }));
@@ -78,13 +78,17 @@ exports.executeOnRelease = async function executeOnRelease() {
     /**
      * Merging the hotfix branch back to the develop branch if needed
      */
-    console.log(`on-release:hotfix: Execute merge workflow`);
+    console.log(`on-release: hotfix: Execute merge workflow`);
     await tryMerge(currentBranch, Config.developBranch);
 
-    const now = new Date();
+    const now = pullRequest.merged_at
+      ? new Date(pullRequest.merged_at)
+      : new Date();
     const version = `hotfix-${now.getFullYear()}${String(
       now.getMonth() + 1
-    ).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+    ).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(
+      now.getHours()
+    ).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
 
     const { data: latestRelease } = await octokit.rest.repos
       .getLatestRelease(Config.repo)
@@ -98,7 +102,7 @@ exports.executeOnRelease = async function executeOnRelease() {
         previous_tag_name: latestRelease?.tag_name,
       });
 
-    console.log(`on-release:release(${version}): Creating GitHub release`);
+    console.log(`on-release: release(${version}): Creating GitHub release`);
     await octokit.rest.repos.createRelease({
       ...Config.repo,
       tag_name: version,
@@ -110,7 +114,7 @@ exports.executeOnRelease = async function executeOnRelease() {
     return;
   } else {
     console.log(
-      `on-release:pull request does not have either ${Constants.Release} or ${Constants.Hotfix} labels. Exiting...`
+      `on-release: pull request does not have either ${Constants.Release} or ${Constants.Hotfix} labels. Exiting...`
     );
     return;
   }
