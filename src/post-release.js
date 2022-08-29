@@ -2,10 +2,9 @@
 const core = require("@actions/core");
 const github = require("@actions/github");
 const assert = require("assert");
-const { Constants } = require("./constants.js");
 const { sendToSlack } = require("./integration-slack.js");
 const { Config, octokit } = require("./shared.js");
-const { tryMerge } = require("./utils.js");
+const { tryMerge, isReleaseCandidate } = require("./utils.js");
 
 exports.executeOnRelease = async function executeOnRelease() {
   if (!github.context.payload.pull_request?.merged) {
@@ -27,16 +26,12 @@ exports.executeOnRelease = async function executeOnRelease() {
     pull_number: pullRequestNumber,
   });
 
-  if (pullRequest.base.ref !== Config.prodBranch) {
-    console.log(
-      `on-release: ${pullRequestNumber} does not merge to main_branch. Exiting...`
-    );
-    return;
-  }
+  const releaseCandidateType = isReleaseCandidate(pullRequest, true);
+  if (!releaseCandidateType) return;
 
   const currentBranch = pullRequest.head.ref;
 
-  if (pullRequest.labels.some((label) => label.name === Constants.Release)) {
+  if (releaseCandidateType === "release") {
     /**
      * Creating a release
      */
@@ -72,15 +67,10 @@ exports.executeOnRelease = async function executeOnRelease() {
     });
 
     return;
-  } else if (
-    pullRequest.labels.some((label) => label.name === Constants.Hotfix)
-  ) {
+  } else if (releaseCandidateType === "hotfix") {
     /**
-     * Merging the hotfix branch back to the develop branch if needed
+     * Creating a hotfix release
      */
-    console.log(`on-release: hotfix: Execute merge workflow`);
-    await tryMerge(currentBranch, Config.developBranch);
-
     const now = pullRequest.merged_at
       ? new Date(pullRequest.merged_at)
       : new Date();
@@ -89,6 +79,12 @@ exports.executeOnRelease = async function executeOnRelease() {
     ).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(
       now.getHours()
     ).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
+
+    /**
+     * Merging the hotfix branch back to the develop branch if needed
+     */
+    console.log(`on-release: hotfix: Execute merge workflow`);
+    await tryMerge(currentBranch, Config.developBranch);
 
     const { data: latestRelease } = await octokit.rest.repos
       .getLatestRelease(Config.repo)
@@ -111,11 +107,6 @@ exports.executeOnRelease = async function executeOnRelease() {
       body: releaseNotes.body,
     });
 
-    return;
-  } else {
-    console.log(
-      `on-release: pull request does not have either ${Constants.Release} or ${Constants.Hotfix} labels. Exiting...`
-    );
     return;
   }
 };
