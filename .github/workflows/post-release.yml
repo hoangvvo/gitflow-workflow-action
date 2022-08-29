@@ -1,22 +1,22 @@
 on:
   pull_request:
-    branches:
-      - main
-      - release/*
     types:
+      - opened
       - closed
+      - labeled
+  release:
+    types:
+      - created
 
-name: Finalize release
+name: Release workflows
 
 jobs:
-  post_release:
-    if: github.event.pull_request.merged == true
+  release_workflow:
     runs-on: ubuntu-latest
-    name: Post Release
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      - name: gitflow-workflow-action post-release
+      - name: gitflow-workflow-action release workflows
         uses: ./ # Uses an action in the root directory
         with:
           develop_branch: "develop"

@@ -19201,13 +19201,13 @@ exports.executePostRelease = async function executePostRelease() {
    * Slack integration
    */
 
-  const slackStr = core.getInput("slack");
-  if (slackStr) {
+  const slackInput = core.getInput("slack");
+  if (slackInput) {
     let slackOpts;
     try {
-      slackOpts = JSON.parse(slackStr);
+      slackOpts = JSON.parse(slackInput);
     } catch (err) {
-      throw new Error(`Could not parse ${slackStr}`);
+      throw new Error(`Could not parse ${slackInput}`);
     }
     console.log(`Posting to slack channel #${slackOpts.channel}`);
     const slackToken = process.env.SLACK_TOKEN;
