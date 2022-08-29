@@ -1,14 +1,15 @@
 // @ts-check
 const core = require("@actions/core");
+const assert = require("assert");
 const { Config, octokit } = require("./shared.js");
 
 exports.createReleasePR = async function createReleasePR() {
   const version = core.getInput("version");
 
-  console.log(`Checking release version`);
-  if (!version) throw new Error(`Missing input.version`);
+  console.log(`create_release: Checking release version`);
+  assert(version, "input.version is not defined");
 
-  console.log(`Generating release notes`);
+  console.log(`create_release: Generating release notes`);
 
   // developBranch and mainBranch are almost identical
   // so we can use developBranch for ahead-of-time release note
@@ -23,7 +24,7 @@ exports.createReleasePR = async function createReleasePR() {
     previous_tag_name: latestRelease?.tag_name,
   });
 
-  console.log(`Creating release branch`);
+  console.log(`create_release: Creating release branch`);
   const releaseBranch = `release/${version}`;
 
   const developBranchSha = (
@@ -40,7 +41,7 @@ exports.createReleasePR = async function createReleasePR() {
     sha: developBranchSha,
   });
 
-  console.log(`Creating Pull Request`);
+  console.log(`create_release: Creating Pull Request`);
 
   const { data: pullRequest } = await octokit.rest.pulls.create({
     ...Config.repo,
@@ -51,5 +52,7 @@ exports.createReleasePR = async function createReleasePR() {
     maintainer_can_modify: false,
   });
 
-  console.log(`Pull request has been created at ${pullRequest.url}`);
+  console.log(
+    `create_release: Pull request has been created at ${pullRequest.url}`
+  );
 };
