@@ -1,148 +1,133 @@
 // @ts-check
 const core = require("@actions/core");
 const github = require("@actions/github");
-const { WebClient: SlackWebClient } = require("@slack/web-api");
+const assert = require("assert");
+const { sendToSlack } = require("./integration-slack.js");
 const { Config, octokit } = require("./shared.js");
+const { tryMerge, isReleaseCandidate } = require("./utils.js");
 
-exports.executePostRelease = async function executePostRelease() {
+exports.executeOnRelease = async function executeOnRelease() {
+  if (!github.context.payload.pull_request?.merged) {
+    console.log(`on-release:pull request is not merged. Exiting...`);
+    return;
+  }
   /**
    * Precheck
    * Check if the pull request has a release label, targeting main branch, and if it was merged
    */
-
-  if (github.context.eventName !== "pull_request") {
-    console.log(`Not a pull request merge. Exiting...`);
-    return;
-  }
   const pullRequestNumber = github.context.payload.pull_request?.number;
-  if (!pullRequestNumber)
-    throw new Error(
-      `github.context.payload.pull_request?.number is not defined`
-    );
-
-  console.log(`Processing post-release after merging ${pullRequestNumber}`);
+  assert(
+    pullRequestNumber,
+    `github.context.payload.pull_request?.number is not defined`
+  );
 
   const { data: pullRequest } = await octokit.rest.pulls.get({
     ...Config.repo,
     pull_number: pullRequestNumber,
   });
 
-  if (pullRequest.base.ref !== Config.prodBranch) {
-    console.log("PR does not merge to main_branch. Exiting...");
-    return;
-  }
+  const releaseCandidateType = isReleaseCandidate(pullRequest, true);
+  if (!releaseCandidateType) return;
 
-  if (!pullRequest.merged) {
-    console.log("Pull request is not merged. Exiting...");
-    return;
-  }
+  const currentBranch = pullRequest.head.ref;
 
-  if (!pullRequest.labels.some((label) => label.name === "release")) {
-    console.log("Pull request does not have release label. Exiting...");
-    return;
-  }
+  if (releaseCandidateType === "release") {
+    /**
+     * Creating a release
+     */
 
-  const releaseBranch = pullRequest.head.ref;
-  const version = releaseBranch.substring("release/".length);
+    const version = currentBranch.substring("release/".length);
 
-  /**
-   * Merging the release branch back to the develop branch if needed
-   */
+    /**
+     * Merging the release branch back to the develop branch if needed
+     */
+    console.log(`on-release: release(${version}): Execute merge workflow`);
+    await tryMerge(currentBranch, Config.developBranch);
 
-  const { data: compareCommitsResult } =
-    await octokit.rest.repos.compareCommits({
-      ...Config.repo,
-      base: Config.developBranch,
-      head: releaseBranch,
-    });
-  if (compareCommitsResult.status !== "identical") {
-    console.log(
-      "develop branch is not up to date with release branch. attempting to merge."
-    );
-    try {
-      await octokit.rest.repos.merge({
+    console.log(`on-release: release(${version}): Generating release notes`);
+    const { data: latestRelease } = await octokit.rest.repos
+      .getLatestRelease(Config.repo)
+      .catch(() => ({ data: null }));
+
+    const { data: releaseNotes } =
+      await octokit.rest.repos.generateReleaseNotes({
         ...Config.repo,
-        base: Config.developBranch,
-        head: releaseBranch,
+        tag_name: version,
+        target_commitish: Config.developBranch,
+        previous_tag_name: latestRelease?.tag_name,
       });
-    } catch (err) {
-      // could not automatically merge
-      // try creating a PR
-      await octokit.rest.pulls
-        .create({
-          ...Config.repo,
-          base: Config.developBranch,
-          head: releaseBranch,
-          title: `Merge release branch ${releaseBranch} to develop branch`,
-          body: `Merge release branch back to develop branch.
-  See [Gitflow Workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow)`,
-        })
-        .catch(() => {
-          /** noop */
-        });
-    }
-  } else {
-    console.log(
-      "develop branch is up to date with release branch. No need to merge back."
-    );
-  }
 
-  /**
-   * Creating a release
-   */
-
-  console.log(`Creating release ${version}`);
-  const { data: latestRelease } = await octokit.rest.repos
-    .getLatestRelease(Config.repo)
-    .catch(() => ({ data: null }));
-
-  const { data: releaseNotes } = await octokit.rest.repos.generateReleaseNotes({
-    ...Config.repo,
-    tag_name: version,
-    target_commitish: Config.developBranch,
-    previous_tag_name: latestRelease?.tag_name,
-  });
-
-  await octokit.rest.repos.createRelease({
-    ...Config.repo,
-    tag_name: version,
-    target_commitish: Config.prodBranch,
-    name: releaseNotes.name,
-    body: releaseNotes.body,
-  });
-
-  /**
-   * Slack integration
-   */
-
-  const slackStr = core.getInput("slack");
-  if (slackStr) {
-    let slackOpts;
-    try {
-      slackOpts = JSON.parse(slackStr);
-    } catch (err) {
-      throw new Error(`Could not parse ${slackStr}`);
-    }
-    console.log(`Posting to slack channel #${slackOpts.channel}`);
-    const slackToken = process.env.SLACK_TOKEN;
-    if (!slackToken) throw new Error("process.env.SLACK_TOKEN is not defined");
-
-    const slackWebClient = new SlackWebClient(slackToken);
-
-    const username_mapping = slackOpts["username_mapping"] || {};
-
-    let releaseBody = releaseNotes.body;
-
-    for (const [username, slackUserId] of Object.entries(username_mapping)) {
-      releaseBody = releaseBody.replaceAll(`@${username}`, `<@${slackUserId}>`);
-    }
-
-    await slackWebClient.chat.postMessage({
-      text: `<${pullRequest.url}|*Release ${version} to ${Config.repo.owner}/${Config.repo.repo}*>
-
-${releaseBody}`,
-      channel: slackOpts.channel,
-      icon_url: "https://avatars.githubusercontent.com/in/15368?s=88&v=4",
+    console.log(`on-release:release(${version}): Creating GitHub release`);
+    await octokit.rest.repos.createRelease({
+      ...Config.repo,
+      tag_name: version,
+      target_commitish: Config.prodBranch,
+      name: releaseNotes.name,
+      body: releaseNotes.body,
     });
+
+    console.log(`on-release: success`);
+
+    return;
+  } else if (releaseCandidateType === "hotfix") {
+    /**
+     * Creating a hotfix release
+     */
+    const now = pullRequest.merged_at
+      ? new Date(pullRequest.merged_at)
+      : new Date();
+    const version = `hotfix-${now.getFullYear()}${String(
+      now.getMonth() + 1
+    ).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(
+      now.getHours()
+    ).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
+
+    /**
+     * Merging the hotfix branch back to the develop branch if needed
+     */
+    console.log(`on-release: hotfix: Execute merge workflow`);
+    await tryMerge(currentBranch, Config.developBranch);
+
+    const { data: latestRelease } = await octokit.rest.repos
+      .getLatestRelease(Config.repo)
+      .catch(() => ({ data: null }));
+
+    const { data: releaseNotes } =
+      await octokit.rest.repos.generateReleaseNotes({
+        ...Config.repo,
+        tag_name: version,
+        target_commitish: Config.developBranch,
+        previous_tag_name: latestRelease?.tag_name,
+      });
+
+    console.log(`on-release: release(${version}): Creating GitHub release`);
+    await octokit.rest.repos.createRelease({
+      ...Config.repo,
+      tag_name: version,
+      target_commitish: Config.prodBranch,
+      name: releaseNotes.name,
+      body: releaseNotes.body,
+    });
+
+    console.log(`on-release: success`);
+
+    return;
   }
+};
+
+exports.executePostRelease = async function executePostRelease() {
+  /**
+   * @type {import("@octokit/plugin-rest-endpoint-methods").RestEndpointMethodTypes["repos"]["createRelease"]["response"]["data"]}
+   */
+  const release = github.context.payload.release;
+  console.log(`post-release: process release ${release.name}`);
+  const slackInput = core.getInput("slack");
+  if (slackInput) {
+    /**
+     * Slack integration
+     */
+    await sendToSlack(slackInput, release);
+  }
+
+  console.log(`post-release: success`);
 };
