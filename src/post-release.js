@@ -31,44 +31,14 @@ exports.executeOnRelease = async function executeOnRelease() {
 
   const currentBranch = pullRequest.head.ref;
 
+  let version = "";
+
   if (releaseCandidateType === "release") {
     /**
      * Creating a release
      */
 
-    const version = currentBranch.substring("release/".length);
-
-    /**
-     * Merging the release branch back to the develop branch if needed
-     */
-    console.log(`on-release: release(${version}): Execute merge workflow`);
-    await tryMerge(currentBranch, Config.developBranch);
-
-    console.log(`on-release: release(${version}): Generating release notes`);
-    const { data: latestRelease } = await octokit.rest.repos
-      .getLatestRelease(Config.repo)
-      .catch(() => ({ data: null }));
-
-    const { data: releaseNotes } =
-      await octokit.rest.repos.generateReleaseNotes({
-        ...Config.repo,
-        tag_name: version,
-        target_commitish: Config.developBranch,
-        previous_tag_name: latestRelease?.tag_name,
-      });
-
-    console.log(`on-release:release(${version}): Creating GitHub release`);
-    await octokit.rest.repos.createRelease({
-      ...Config.repo,
-      tag_name: version,
-      target_commitish: Config.prodBranch,
-      name: releaseNotes.name,
-      body: releaseNotes.body,
-    });
-
-    console.log(`on-release: success`);
-
-    return;
+    version = currentBranch.substring("release/".length);
   } else if (releaseCandidateType === "hotfix") {
     /**
      * Creating a hotfix release
@@ -76,43 +46,58 @@ exports.executeOnRelease = async function executeOnRelease() {
     const now = pullRequest.merged_at
       ? new Date(pullRequest.merged_at)
       : new Date();
-    const version = `hotfix-${now.getFullYear()}${String(
-      now.getMonth() + 1
-    ).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(
+    version = `hotfix-${now.getFullYear()}${String(now.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}${String(now.getDate()).padStart(2, "0")}${String(
       now.getHours()
     ).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
-
-    /**
-     * Merging the hotfix branch back to the develop branch if needed
-     */
-    console.log(`on-release: hotfix: Execute merge workflow`);
-    await tryMerge(currentBranch, Config.developBranch);
-
-    const { data: latestRelease } = await octokit.rest.repos
-      .getLatestRelease(Config.repo)
-      .catch(() => ({ data: null }));
-
-    const { data: releaseNotes } =
-      await octokit.rest.repos.generateReleaseNotes({
-        ...Config.repo,
-        tag_name: version,
-        target_commitish: Config.developBranch,
-        previous_tag_name: latestRelease?.tag_name,
-      });
-
-    console.log(`on-release: release(${version}): Creating GitHub release`);
-    await octokit.rest.repos.createRelease({
-      ...Config.repo,
-      tag_name: version,
-      target_commitish: Config.prodBranch,
-      name: releaseNotes.name,
-      body: releaseNotes.body,
-    });
-
-    console.log(`on-release: success`);
-
-    return;
   }
+
+  /**
+   * Merging the release or hotfix branch back to the develop branch if needed
+   */
+  console.log(
+    `on-release: ${releaseCandidateType}(${version}): Execute merge workflow`
+  );
+  await tryMerge(currentBranch, Config.developBranch);
+
+  console.log(`on-release: release(${version}): Generating release notes`);
+  const { data: latestRelease } = await octokit.rest.repos
+    .getLatestRelease(Config.repo)
+    .catch(() => ({ data: null }));
+
+  const { data: releaseNotes } = await octokit.rest.repos.generateReleaseNotes({
+    ...Config.repo,
+    tag_name: version,
+    target_commitish: Config.prodBranch,
+    previous_tag_name: latestRelease?.tag_name,
+  });
+
+  let releaseNotesBody = releaseNotes.body;
+
+  const pullRequestBody = pullRequest.body;
+  if (pullRequestBody) {
+    // try to extract release summary
+    const lines = pullRequestBody.split(`\n`);
+    const sepIndex = lines.findIndex((line) => line.startsWith("---"));
+    if (sepIndex !== -1) {
+      const summary = lines.slice(sepIndex + 1).join(`\n`);
+      releaseNotesBody = `${releaseNotesBody}
+
+${summary}`;
+    }
+  }
+
+  await octokit.rest.repos.createRelease({
+    ...Config.repo,
+    tag_name: version,
+    target_commitish: Config.prodBranch,
+    name: releaseNotes.name || version,
+    body: releaseNotesBody,
+  });
+
+  console.log(`on-release: success`);
 };
 
 exports.executePostRelease = async function executePostRelease() {
