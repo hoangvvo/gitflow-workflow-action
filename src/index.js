@@ -5,7 +5,7 @@ const {
   pullRequestAutoLabel,
   pullRequestLabelExplainer,
 } = require("./labeler.js");
-const { executePostRelease, executeOnRelease } = require("./post-release.js");
+const { executeOnRelease } = require("./post-release.js");
 const { createReleasePR } = require("./release.js");
 
 const start = async () => {
@@ -20,9 +20,6 @@ const start = async () => {
       await pullRequestLabelExplainer();
       return;
     }
-  } else if (github.context.eventName === "release") {
-    await executePostRelease();
-    return;
   } else if (github.context.eventName === "workflow_dispatch") {
     await createReleasePR();
     return;
