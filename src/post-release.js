@@ -89,7 +89,7 @@ ${summary}`;
     }
   }
 
-  await octokit.rest.repos.createRelease({
+  const { data: release } = await octokit.rest.repos.createRelease({
     ...Config.repo,
     tag_name: version,
     target_commitish: Config.prodBranch,
@@ -98,13 +98,7 @@ ${summary}`;
   });
 
   console.log(`on-release: success`);
-};
 
-exports.executePostRelease = async function executePostRelease() {
-  /**
-   * @type {import("@octokit/plugin-rest-endpoint-methods").RestEndpointMethodTypes["repos"]["createRelease"]["response"]["data"]}
-   */
-  const release = github.context.payload.release;
   console.log(`post-release: process release ${release.name}`);
   const slackInput = core.getInput("slack");
   if (slackInput) {
