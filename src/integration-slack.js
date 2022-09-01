@@ -31,7 +31,9 @@ exports.sendToSlack = async (slackInput, release) => {
   }
 
   await slackWebClient.chat.postMessage({
-    text: `<${release.url}|*Release ${release.name} to ${Config.repo.owner}/${Config.repo.repo}*>
+    text: `<${release.url}|*Release ${release.name || release.tag_name} to ${
+      Config.repo.owner
+    }/${Config.repo.repo}*>
 
 ${releaseBody}`,
     channel: slackOpts.channel,
