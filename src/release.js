@@ -45,8 +45,11 @@ exports.createReleasePR = async function createReleasePR() {
 
   const { data: pullRequest } = await octokit.rest.pulls.create({
     ...Config.repo,
-    title: `Release ${releaseNotes.name}`,
-    body: releaseNotes.body,
+    title: `Release ${releaseNotes.name || version}`,
+    body: `${releaseNotes.body}
+    
+Release summary
+---`,
     head: releaseBranch,
     base: Config.prodBranch,
     maintainer_can_modify: false,
