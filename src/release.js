@@ -1,6 +1,7 @@
 // @ts-check
 const core = require("@actions/core");
 const assert = require("assert");
+const { Constants } = require("./constants.js");
 const { Config, octokit } = require("./shared.js");
 
 exports.createReleasePR = async function createReleasePR() {
@@ -53,6 +54,12 @@ Release summary
     head: releaseBranch,
     base: Config.prodBranch,
     maintainer_can_modify: false,
+  });
+
+  await octokit.rest.issues.addLabels({
+    ...Config.repo,
+    issue_number: pullRequest.number,
+    labels: [Constants.Release],
   });
 
   console.log(
