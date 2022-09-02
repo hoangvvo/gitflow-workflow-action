@@ -85,6 +85,7 @@ exports.executeOnRelease = async function executeOnRelease() {
       const summary = lines.slice(sepIndex + 1).join(`\n`);
       releaseNotesBody = `${releaseNotesBody}
 
+## Release summary
 ${summary}`;
     }
   }

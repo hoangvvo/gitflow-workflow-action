@@ -30,13 +30,17 @@ exports.sendToSlack = async (slackInput, release) => {
     releaseBody = releaseBody.replaceAll(`@${username}`, `<@${slackUserId}>`);
   }
 
+  // replace ## title with **title**
+  releaseBody = releaseBody.replace(/## (.*)/, `*$1*`);
+
   await slackWebClient.chat.postMessage({
-    text: `<${release.url}|*Release ${release.name || release.tag_name} to ${
-      Config.repo.owner
-    }/${Config.repo.repo}*>
+    text: `<${release.html_url}|*Release ${
+      release.name || release.tag_name
+    } to ${Config.repo.owner}/${Config.repo.repo}*>
 
 ${releaseBody}`,
     channel: slackOpts.channel,
     icon_url: "https://avatars.githubusercontent.com/in/15368?s=88&v=4",
+    mrkdwn: true,
   });
 };
