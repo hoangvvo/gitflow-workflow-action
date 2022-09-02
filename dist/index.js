@@ -19297,7 +19297,7 @@ ${summary}`;
     }
   }
 
-  await octokit.rest.repos.createRelease({
+  const { data: release } = await octokit.rest.repos.createRelease({
     ...Config.repo,
     tag_name: version,
     target_commitish: Config.prodBranch,
@@ -19306,13 +19306,7 @@ ${summary}`;
   });
 
   console.log(`on-release: success`);
-};
 
-exports.executePostRelease = async function executePostRelease() {
-  /**
-   * @type {import("@octokit/plugin-rest-endpoint-methods").RestEndpointMethodTypes["repos"]["createRelease"]["response"]["data"]}
-   */
-  const release = github.context.payload.release;
   console.log(`post-release: process release ${release.name}`);
   const slackInput = core.getInput("slack");
   if (slackInput) {
@@ -19334,6 +19328,7 @@ exports.executePostRelease = async function executePostRelease() {
 // @ts-check
 const core = __nccwpck_require__(2186);
 const assert = __nccwpck_require__(9491);
+const { Constants } = __nccwpck_require__(4438);
 const { Config, octokit } = __nccwpck_require__(9297);
 
 exports.createReleasePR = async function createReleasePR() {
@@ -19386,6 +19381,12 @@ Release summary
     head: releaseBranch,
     base: Config.prodBranch,
     maintainer_can_modify: false,
+  });
+
+  await octokit.rest.issues.addLabels({
+    ...Config.repo,
+    issue_number: pullRequest.number,
+    labels: [Constants.Release],
   });
 
   console.log(
@@ -19720,7 +19721,7 @@ const {
   pullRequestAutoLabel,
   pullRequestLabelExplainer,
 } = __nccwpck_require__(9421);
-const { executePostRelease, executeOnRelease } = __nccwpck_require__(2706);
+const { executeOnRelease } = __nccwpck_require__(2706);
 const { createReleasePR } = __nccwpck_require__(2026);
 
 const start = async () => {
@@ -19735,9 +19736,6 @@ const start = async () => {
       await pullRequestLabelExplainer();
       return;
     }
-  } else if (github.context.eventName === "release") {
-    await executePostRelease();
-    return;
   } else if (github.context.eventName === "workflow_dispatch") {
     await createReleasePR();
     return;
