@@ -25,7 +25,7 @@ exports.sendToSlack = async (slackInput, release) => {
   let releaseBody = release.body || "";
 
   // replace ## title with **title**
-  releaseBody = releaseBody.replace(/## (.*)/, `*$1*`);
+  releaseBody = releaseBody.replace(/## (.*)/g, `*$1*`);
 
   // replace * with for list
   releaseBody = releaseBody.replaceAll(`\n* `, `\n- `);
@@ -33,7 +33,7 @@ exports.sendToSlack = async (slackInput, release) => {
   // rewrite changelog entries to format
   // [title](link) by name
   releaseBody = releaseBody.replace(
-    /- (.*) by (.*) in (.*)/,
+    /- (.*) by (.*) in (.*)/g,
     `- <$3|$1> by $2`
   );
 
