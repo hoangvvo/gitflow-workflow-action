@@ -19281,7 +19281,7 @@ exports.executeOnRelease = async function executeOnRelease() {
   console.log(
     `on-release: ${releaseCandidateType}(${version}): Execute merge workflow`
   );
-  await tryMerge(currentBranch, Config.developBranch);
+  await tryMerge(Config.prodBranch, Config.developBranch);
 
   console.log(`on-release: release(${version}): Generating release notes`);
   const { data: latestRelease } = await octokit.rest.repos
