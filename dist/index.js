@@ -19404,7 +19404,7 @@ Release summary
   });
 
   console.log(
-    `create_release: Pull request has been created at ${pullRequest.url}`
+    `create_release: Pull request has been created at ${pullRequest.html_url}`
   );
 };
 
