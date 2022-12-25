@@ -66,6 +66,6 @@ Release summary
     `create_release: Pull request has been created at ${pullRequest.url}`
   );
   await core.summary
-  .addHeading(`Created release branch and PR ${version}`)
-  .addLink('View release PR!', pullRequest.html_url)
+    .addHeading(`Created release branch and PR ${version}`)
+    .addLink("View release PR!", pullRequest.html_url);
 };

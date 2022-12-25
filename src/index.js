@@ -24,14 +24,14 @@ const start = async () => {
     await createReleasePR();
     return;
   }
-  const message = `gitflow-workflow-action: does not match any eventName. Skipping...`
+  const message = `gitflow-workflow-action: does not match any eventName. Skipping...`;
   console.log(message);
-  core.summary.addHeading(message, 3)
+  core.summary.addHeading(message, 3);
 };
 
 start()
-  .then(async() => {
-    await core.summary.write()
+  .then(async () => {
+    await core.summary.write();
     process.exitCode = 0;
   })
   .catch((err) => {
