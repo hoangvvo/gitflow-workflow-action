@@ -1,3 +1,4 @@
+const core = require("@actions/core");
 const { Constants } = require("./constants");
 const { Config, octokit } = require("./shared");
 
@@ -24,10 +25,12 @@ exports.tryMerge = async function tryMerge(headBranch, baseBranch) {
         base: baseBranch,
         head: headBranch,
       });
+      core.summary.addHeading('Back-merge', 2).addRaw(`The ${headBranch} branch was successfully merge into ${baseBranch} branch.`)
     } catch (err) {
       // could not automatically merge
       // try creating a PR
-      await octokit.rest.pulls
+      try {
+        const { data: pullRequest } = await octokit.rest.pulls
         .create({
           ...Config.repo,
           base: baseBranch,
@@ -35,10 +38,12 @@ exports.tryMerge = async function tryMerge(headBranch, baseBranch) {
           title: `Merge ${headBranch} branch into ${baseBranch}`,
           body: `In Gitflow, \`release\` and \`hotfix\` branches get merged back into \`develop\` branch.
 See [Gitflow Workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow) for more details.`,
-        })
-        .catch(() => {
-          /** noop */
-        });
+        })  
+        core.summary.addHeading('Back-merge', 2).addRaw(`A PR was created for back-merge, please review [here](${pullRequest.html_url})`)
+      } catch (error) {
+        core.error(`Couldn't perform back-merge! Merge error: ${err}, PR error ${error}`)
+      }
+      
     }
   } else {
     console.log(
@@ -56,10 +61,11 @@ exports.isReleaseCandidate = function isReleaseCandidate(
   shouldLog = false
 ) {
   if (pullRequest.base.ref !== Config.prodBranch) {
-    if (shouldLog)
-      console.log(
-        `on-release: ${pullRequest.number} does not merge to main_branch. Exiting...`
-      );
+    const message = `on-release: ${pullRequest.number} does not merge to main_branch. Exiting...`
+    if (shouldLog) 
+      console.log(message);
+    
+    core.summary.addHeading('Not release candidate', 2).addRaw(message)
     return false;
   }
 
@@ -70,9 +76,10 @@ exports.isReleaseCandidate = function isReleaseCandidate(
   if (pullRequest.labels.some((label) => label.name === Constants.Hotfix))
     return "hotfix";
 
+  const message = `on-release: pull request does not have either ${Constants.Release} or ${Constants.Hotfix} labels. Exiting...`
   if (shouldLog)
-    console.log(
-      `on-release: pull request does not have either ${Constants.Release} or ${Constants.Hotfix} labels. Exiting...`
-    );
+    console.log(message);
+  
+    core.summary.addHeading('Not release candidate', 2).addRaw(message)
   return false;
 };
