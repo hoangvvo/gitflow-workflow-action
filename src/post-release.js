@@ -99,8 +99,8 @@ ${summary}`;
   });
 
   await core.summary
-  .addHeading(`Release successful ${version}`)
-  .addLink('View the release!', release.html_url)
+    .addHeading(`Release successful ${version}`)
+    .addLink("View the release!", release.html_url);
 
   console.log(`on-release: success`);
 
