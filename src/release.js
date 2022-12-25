@@ -66,6 +66,6 @@ export async function createReleasePR() {
   await createExplainComment(pullRequest.number);
 
   console.log(
-    `create_release: Pull request has been created at ${pullRequest.html_url}`,
+    `create_release: Pull request has been created at ${pullRequest.html_url}`
   );
 }
