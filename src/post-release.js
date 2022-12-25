@@ -98,6 +98,10 @@ ${summary}`;
     body: releaseNotesBody,
   });
 
+  await core.summary
+    .addHeading(`Release successful ${version}`)
+    .addLink("View the release!", release.html_url);
+
   console.log(`on-release: success`);
 
   console.log(`post-release: process release ${release.name}`);
