@@ -19490,9 +19490,8 @@ See [Gitflow Workflow](https://www.atlassian.com/git/tutorials/comparing-workflo
         });
         core.summary
           .addHeading("Back-merge", 2)
-          .addRaw(
-            `A PR was created for back-merge, please review [here](${pullRequest.html_url})`
-          );
+          .addRaw("A PR was created for back-merge, please review:")
+          .addLink("Back-merge PR", pullRequest.html_url);
       } catch (error) {
         core.error(
           `Couldn't perform back-merge! Merge error: ${err}, PR error ${error}`
