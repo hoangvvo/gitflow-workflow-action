@@ -19319,6 +19319,10 @@ ${summary}`;
     body: releaseNotesBody,
   });
 
+  await core.summary
+    .addHeading(`Release successful ${version}`)
+    .addLink("View the release!", release.html_url);
+
   console.log(`on-release: success`);
 
   console.log(`post-release: process release ${release.name}`);
@@ -19406,6 +19410,9 @@ Release summary
   console.log(
     `create_release: Pull request has been created at ${pullRequest.html_url}`
   );
+  await core.summary
+    .addHeading(`Created release branch and PR ${version}`)
+    .addLink("View release PR!", pullRequest.html_url);
 };
 
 
@@ -19437,6 +19444,7 @@ exports.Config = {
 /***/ 1608:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
+const core = __nccwpck_require__(2186);
 const { Constants } = __nccwpck_require__(4438);
 const { Config, octokit } = __nccwpck_require__(9297);
 
@@ -19463,21 +19471,33 @@ exports.tryMerge = async function tryMerge(headBranch, baseBranch) {
         base: baseBranch,
         head: headBranch,
       });
+      core.summary
+        .addHeading("Back-merge", 2)
+        .addRaw(
+          `The ${headBranch} branch was successfully merge into ${baseBranch} branch.`
+        );
     } catch (err) {
       // could not automatically merge
       // try creating a PR
-      await octokit.rest.pulls
-        .create({
+      try {
+        const { data: pullRequest } = await octokit.rest.pulls.create({
           ...Config.repo,
           base: baseBranch,
           head: headBranch,
           title: `Merge ${headBranch} branch into ${baseBranch}`,
           body: `In Gitflow, \`release\` and \`hotfix\` branches get merged back into \`develop\` branch.
 See [Gitflow Workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow) for more details.`,
-        })
-        .catch(() => {
-          /** noop */
         });
+        core.summary
+          .addHeading("Back-merge", 2)
+          .addRaw(
+            `A PR was created for back-merge, please review [here](${pullRequest.html_url})`
+          );
+      } catch (error) {
+        core.error(
+          `Couldn't perform back-merge! Merge error: ${err}, PR error ${error}`
+        );
+      }
     }
   } else {
     console.log(
@@ -19495,10 +19515,10 @@ exports.isReleaseCandidate = function isReleaseCandidate(
   shouldLog = false
 ) {
   if (pullRequest.base.ref !== Config.prodBranch) {
-    if (shouldLog)
-      console.log(
-        `on-release: ${pullRequest.number} does not merge to main_branch. Exiting...`
-      );
+    const message = `on-release: ${pullRequest.number} does not merge to main_branch. Exiting...`;
+    if (shouldLog) console.log(message);
+
+    core.summary.addHeading("Not release candidate", 2).addRaw(message);
     return false;
   }
 
@@ -19509,10 +19529,10 @@ exports.isReleaseCandidate = function isReleaseCandidate(
   if (pullRequest.labels.some((label) => label.name === Constants.Hotfix))
     return "hotfix";
 
-  if (shouldLog)
-    console.log(
-      `on-release: pull request does not have either ${Constants.Release} or ${Constants.Hotfix} labels. Exiting...`
-    );
+  const message = `on-release: pull request does not have either ${Constants.Release} or ${Constants.Hotfix} labels. Exiting...`;
+  if (shouldLog) console.log(message);
+
+  core.summary.addHeading("Not release candidate", 2).addRaw(message);
   return false;
 };
 
@@ -19754,13 +19774,14 @@ const start = async () => {
     await createReleasePR();
     return;
   }
-  console.log(
-    `gitflow-workflow-action: does not match any eventName. Skipping...`
-  );
+  const message = `gitflow-workflow-action: does not match any eventName. Skipping...`;
+  console.log(message);
+  core.summary.addHeading(message, 3);
 };
 
 start()
-  .then(() => {
+  .then(async () => {
+    await core.summary.write();
     process.exitCode = 0;
   })
   .catch((err) => {
