@@ -41,6 +41,7 @@ exports.createReleasePR = async function createReleasePR() {
     ref: `refs/heads/${releaseBranch}`,
     sha: developBranchSha,
   });
+  core.setOutput('releaseBranch', releaseBranch);
 
   console.log(`create_release: Creating Pull Request`);
 
