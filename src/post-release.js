@@ -27,7 +27,10 @@ exports.executeOnRelease = async function executeOnRelease() {
   });
 
   const releaseCandidateType = isReleaseCandidate(pullRequest, true);
-  if (!releaseCandidateType) return;
+  if (!releaseCandidateType) {
+    core.setOutput('result', 'none')
+    return;
+  }
 
   const currentBranch = pullRequest.head.ref;
 
@@ -38,11 +41,13 @@ exports.executeOnRelease = async function executeOnRelease() {
      * Creating a release
      */
 
+    core.setOutput('result', 'release')
     version = currentBranch.substring("release/".length);
   } else if (releaseCandidateType === "hotfix") {
     /**
      * Creating a hotfix release
      */
+    core.setOutput('result', 'hotfix')
     const now = pullRequest.merged_at
       ? new Date(pullRequest.merged_at)
       : new Date();
