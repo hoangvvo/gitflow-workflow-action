@@ -17,13 +17,13 @@ exports.pullRequestAutoLabel = async function pullRequestAutoLabel() {
     pull_number: pullRequestNumber,
   });
 
-  if (pullRequest.head.ref.startsWith("hotfix/")) {
+  if (pullRequest.head.ref.startsWith(Config.hotfixPrefix)) {
     await octokit.rest.issues.addLabels({
       ...Config.repo,
       issue_number: pullRequest.number,
       labels: [Constants.Hotfix],
     });
-  } else if (pullRequest.head.ref.startsWith("release/")) {
+  } else if (pullRequest.head.ref.startsWith(Config.releasePrefix)) {
     await octokit.rest.issues.addLabels({
       ...Config.repo,
       issue_number: pullRequest.number,

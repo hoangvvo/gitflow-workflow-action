@@ -12,6 +12,14 @@ inputs:
   main_branch:
     description: The branch used for production
     required: true
+  release_prefix:
+    description: release branch prefix
+    required: false
+    default: "release/"
+  hotfix_prefix:
+    description: hotfix branch prefix
+    required: false
+    default: "hotfix/"
   slack:
     description: The slack options (channel, name mapping)
     required: false

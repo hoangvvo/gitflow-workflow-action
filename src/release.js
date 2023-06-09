@@ -26,7 +26,7 @@ exports.createReleasePR = async function createReleasePR() {
   });
 
   console.log(`create_release: Creating release branch`);
-  const releaseBranch = `release/${version}`;
+  const releaseBranch = `${Config.releasePrefix}${version}`;
 
   const developBranchSha = (
     await octokit.rest.repos.getBranch({

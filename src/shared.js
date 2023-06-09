@@ -9,6 +9,8 @@ exports.octokit = github.getOctokit(githubToken);
 exports.Config = {
   developBranch: core.getInput("develop_branch"),
   prodBranch: core.getInput("main_branch"),
+  releasePrefix: core.getInput("release_prefix"),
+  hotfixPrefix: core.getInput("hotfix_prefix"),
   repo: {
     owner: github.context.repo.owner,
     repo: github.context.repo.repo,

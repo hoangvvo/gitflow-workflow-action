@@ -38,7 +38,7 @@ exports.executeOnRelease = async function executeOnRelease() {
      * Creating a release
      */
 
-    version = currentBranch.substring("release/".length);
+    version = currentBranch.substring(`${Config.releasePrefix}`.length);
   } else if (releaseCandidateType === "hotfix") {
     /**
      * Creating a hotfix release
