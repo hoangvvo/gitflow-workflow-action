@@ -1,14 +1,17 @@
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        required: true
+        description: "Version to release"
   pull_request:
     types:
       - opened
       - closed
       - labeled
-  release:
-    types:
-      - created
 
-name: Release workflows
+name: Release
 
 jobs:
   release_workflow:
@@ -17,11 +20,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - name: gitflow-workflow-action release workflows
-        uses: ./ # Uses an action in the root directory
+        uses: ./
         with:
           develop_branch: "develop"
           main_branch: "main"
-          # if you want to post to slack
+          version: ${{ inputs.version }}
           slack: >
             {
               "channel": "hoang-test",
@@ -31,5 +34,3 @@ jobs:
             }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # if you want to post to slack
-          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}

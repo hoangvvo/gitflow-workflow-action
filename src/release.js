@@ -1,9 +1,14 @@
 // @ts-check
-const core = require("@actions/core");
-const assert = require("assert");
-const { Config, octokit } = require("./shared.js");
+import * as core from "@actions/core";
+import assert from "assert";
+import { Constants } from "./constants.js";
+import { Config, octokit } from "./shared.js";
+import { createExplainComment } from "./utils.js";
 
-exports.createReleasePR = async function createReleasePR() {
+/**
+ * @returns {Promise<import("./types.js").Result>}
+ */
+export async function createReleasePR() {
   const version = core.getInput("version");
 
   console.log(`create_release: Checking release version`);
@@ -45,14 +50,32 @@ exports.createReleasePR = async function createReleasePR() {
 
   const { data: pullRequest } = await octokit.rest.pulls.create({
     ...Config.repo,
-    title: `Release ${releaseNotes.name}`,
-    body: releaseNotes.body,
+    title: `Release ${releaseNotes.name || version}`,
+    body: `${releaseNotes.body}
+    
+## Release summary
+`,
     head: releaseBranch,
     base: Config.prodBranch,
     maintainer_can_modify: false,
   });
 
+  await octokit.rest.issues.addLabels({
+    ...Config.repo,
+    issue_number: pullRequest.number,
+    labels: [Constants.Release],
+  });
+
+  await createExplainComment(pullRequest.number);
+
   console.log(
-    `create_release: Pull request has been created at ${pullRequest.url}`
+    `create_release: Pull request has been created at ${pullRequest.html_url}`,
   );
-};
+
+  return {
+    type: "release",
+    pull_number: pullRequest.number,
+    version,
+    release_branch: releaseBranch,
+  };
+}
