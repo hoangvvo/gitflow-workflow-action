@@ -100,3 +100,8 @@ export async function createExplainComment(pullRequestNumber) {
     body: PR_EXPLAIN_MESSAGE,
   });
 }
+
+/**
+ * @param {string} text
+ */
+export const removeHtmlComments = (text) => text.replace(/<!--.*?-->/gs, "");

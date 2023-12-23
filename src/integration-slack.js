@@ -2,6 +2,7 @@
 import { WebClient as SlackWebClient } from "@slack/web-api";
 import slackifyMarkdown from "slackify-markdown";
 import { Config } from "./shared.js";
+import { removeHtmlComments } from "./utils.js";
 
 /**
  *
@@ -24,6 +25,8 @@ export async function sendToSlack(slackInput, release) {
   const slackWebClient = new SlackWebClient(slackToken);
 
   let releaseBody = release.body || "";
+
+  releaseBody = removeHtmlComments(releaseBody);
 
   releaseBody = slackifyMarkdown(releaseBody);
 
