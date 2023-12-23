@@ -77,7 +77,7 @@ exports.executeOnRelease = async function executeOnRelease() {
   console.log(`on-release: success`);
 
   console.log(`post-release: process release ${release.name}`);
-  const slackInput = core.getInput("slack");
+  const slackInput = core.getInput("slack") || process.env.SLACK_OPTIONS;
   if (slackInput) {
     /**
      * Slack integration

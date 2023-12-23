@@ -3,6 +3,7 @@ const core = require("@actions/core");
 const assert = require("assert");
 const { Constants } = require("./constants.js");
 const { Config, octokit } = require("./shared.js");
+const { createExplainComment } = require("./utils.js");
 
 exports.createReleasePR = async function createReleasePR() {
   const version = core.getInput("version");
@@ -49,8 +50,8 @@ exports.createReleasePR = async function createReleasePR() {
     title: `Release ${releaseNotes.name || version}`,
     body: `${releaseNotes.body}
     
-Release summary
----`,
+## Release summary
+`,
     head: releaseBranch,
     base: Config.prodBranch,
     maintainer_can_modify: false,
@@ -61,6 +62,8 @@ Release summary
     issue_number: pullRequest.number,
     labels: [Constants.Release],
   });
+
+  await createExplainComment(pullRequest.number);
 
   console.log(
     `create_release: Pull request has been created at ${pullRequest.html_url}`

@@ -23,10 +23,11 @@ const start = async () => {
   } else if (github.context.eventName === "workflow_dispatch") {
     await createReleasePR();
     return;
+  } else {
+    console.log(
+      `gitflow-workflow-action: does not match any eventName. Skipping...`
+    );
   }
-  console.log(
-    `gitflow-workflow-action: does not match any eventName. Skipping...`
-  );
 };
 
 start()

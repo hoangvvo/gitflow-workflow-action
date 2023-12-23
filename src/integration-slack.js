@@ -1,6 +1,7 @@
 // @ts-check
 const { WebClient: SlackWebClient } = require("@slack/web-api");
 const { Config } = require("./shared.js");
+const slackifyMarkdown = require("slackify-markdown");
 
 /**
  *
@@ -24,11 +25,7 @@ exports.sendToSlack = async (slackInput, release) => {
 
   let releaseBody = release.body || "";
 
-  // replace ## title with **title**
-  releaseBody = releaseBody.replace(/## (.*)/g, `*$1*`);
-
-  // replace * with for list
-  releaseBody = releaseBody.replaceAll(`\n* `, `\n- `);
+  releaseBody = slackifyMarkdown(releaseBody);
 
   // rewrite changelog entries to format
   // [title](link) by name

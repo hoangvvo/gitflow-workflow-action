@@ -1,7 +1,7 @@
 // @ts-check
 const github = require("@actions/github");
 const assert = require("assert");
-const { Constants } = require("./constants");
+const { Constants, PR_EXPLAIN_MESSAGE } = require("./constants");
 const { octokit, Config } = require("./shared");
 const { isReleaseCandidate } = require("./utils");
 
@@ -48,8 +48,7 @@ exports.pullRequestLabelExplainer = async function labelExplainer() {
     await octokit.rest.issues.createComment({
       ...Config.repo,
       issue_number: pullRequestNumber,
-      body: `Merging this pull request will trigger Gitflow release actions. A release would be created and this branch would be merged back to ${Config.developBranch} if needed.
-  See [Gitflow Workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow) for more details.`,
+      body: PR_EXPLAIN_MESSAGE,
     });
   }
 };

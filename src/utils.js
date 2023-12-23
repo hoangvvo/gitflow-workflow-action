@@ -1,4 +1,4 @@
-const { Constants } = require("./constants");
+const { Constants, PR_EXPLAIN_MESSAGE } = require("./constants");
 const { Config, octokit } = require("./shared");
 
 /**
@@ -75,4 +75,33 @@ exports.isReleaseCandidate = function isReleaseCandidate(
       `on-release: pull request does not have either ${Constants.Release} or ${Constants.Hotfix} labels. Exiting...`
     );
   return false;
+};
+
+/**
+ * @param {number} pullRequestNumber
+ */
+exports.createExplainComment = async function createExplainComment(
+  pullRequestNumber
+) {
+  const existingComments = await octokit.rest.issues.listComments({
+    ...Config.repo,
+    issue_number: pullRequestNumber,
+  });
+
+  const existingExplainComment = existingComments.data.find(
+    (comment) => comment.body === PR_EXPLAIN_MESSAGE
+  );
+
+  if (existingExplainComment) {
+    console.log(
+      `on-release: pull request ${pullRequestNumber} already has an explain comment.`
+    );
+    return;
+  }
+
+  await octokit.rest.issues.createComment({
+    ...Config.repo,
+    issue_number: pullRequestNumber,
+    body: PR_EXPLAIN_MESSAGE,
+  });
 };
