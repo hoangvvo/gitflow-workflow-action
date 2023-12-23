@@ -1,11 +1,11 @@
 // @ts-check
-const core = require("@actions/core");
-const assert = require("assert");
-const { Constants } = require("./constants.js");
-const { Config, octokit } = require("./shared.js");
-const { createExplainComment } = require("./utils.js");
+import core from "@actions/core";
+import assert from "assert";
+import { Constants } from "./constants.js";
+import { Config, octokit } from "./shared.js";
+import { createExplainComment } from "./utils.js";
 
-exports.createReleasePR = async function createReleasePR() {
+export async function createReleasePR() {
   const version = core.getInput("version");
 
   console.log(`create_release: Checking release version`);
@@ -66,6 +66,6 @@ exports.createReleasePR = async function createReleasePR() {
   await createExplainComment(pullRequest.number);
 
   console.log(
-    `create_release: Pull request has been created at ${pullRequest.html_url}`
+    `create_release: Pull request has been created at ${pullRequest.html_url}`,
   );
-};
+}

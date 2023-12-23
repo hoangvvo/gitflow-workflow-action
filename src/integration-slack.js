@@ -1,14 +1,14 @@
 // @ts-check
-const { WebClient: SlackWebClient } = require("@slack/web-api");
-const { Config } = require("./shared.js");
-const slackifyMarkdown = require("slackify-markdown");
+import { WebClient as SlackWebClient } from "@slack/web-api";
+import slackifyMarkdown from "slackify-markdown";
+import { Config } from "./shared.js";
 
 /**
  *
  * @param {string} slackInput
  * @param {import("@octokit/plugin-rest-endpoint-methods").RestEndpointMethodTypes["repos"]["createRelease"]["response"]["data"] } release
  */
-exports.sendToSlack = async (slackInput, release) => {
+export async function sendToSlack(slackInput, release) {
   let slackOpts;
   try {
     slackOpts = JSON.parse(slackInput);
@@ -16,7 +16,7 @@ exports.sendToSlack = async (slackInput, release) => {
     throw new Error(`integration(slack): Could not parse ${slackInput}`);
   }
   console.log(
-    `integration(slack): Posting to slack channel #${slackOpts.channel}`
+    `integration(slack): Posting to slack channel #${slackOpts.channel}`,
   );
   const slackToken = process.env.SLACK_TOKEN;
   if (!slackToken) throw new Error("process.env.SLACK_TOKEN is not defined");
@@ -31,7 +31,7 @@ exports.sendToSlack = async (slackInput, release) => {
   // [title](link) by name
   releaseBody = releaseBody.replace(
     /- (.*) by (.*) in (.*)/g,
-    `- <$3|$1> by $2`
+    `- <$3|$1> by $2`,
   );
 
   const username_mapping = slackOpts["username_mapping"] || {};
@@ -49,4 +49,4 @@ ${releaseBody}`,
     icon_url: "https://avatars.githubusercontent.com/in/15368?s=88&v=4",
     mrkdwn: true,
   });
-};
+}

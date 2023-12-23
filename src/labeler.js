@@ -1,15 +1,15 @@
 // @ts-check
-const github = require("@actions/github");
-const assert = require("assert");
-const { Constants, PR_EXPLAIN_MESSAGE } = require("./constants");
-const { octokit, Config } = require("./shared");
-const { isReleaseCandidate } = require("./utils");
+import github from "@actions/github";
+import assert from "assert";
+import { Constants, PR_EXPLAIN_MESSAGE } from "./constants";
+import { Config, octokit } from "./shared.js";
+import { isReleaseCandidate } from "./utils.js";
 
-exports.pullRequestAutoLabel = async function pullRequestAutoLabel() {
+export async function pullRequestAutoLabel() {
   const pullRequestNumber = github.context.payload.pull_request?.number;
   assert(
     pullRequestNumber,
-    `github.context.payload.pull_request?.number is not defined`
+    `github.context.payload.pull_request?.number is not defined`,
   );
 
   const { data: pullRequest } = await octokit.rest.pulls.get({
@@ -30,13 +30,13 @@ exports.pullRequestAutoLabel = async function pullRequestAutoLabel() {
       labels: [Constants.Release],
     });
   }
-};
+}
 
-exports.pullRequestLabelExplainer = async function labelExplainer() {
+export async function pullRequestLabelExplainer() {
   const pullRequestNumber = github.context.payload.pull_request?.number;
   assert(
     pullRequestNumber,
-    `github.context.payload.pull_request?.number is not defined`
+    `github.context.payload.pull_request?.number is not defined`,
   );
 
   const { data: pullRequest } = await octokit.rest.pulls.get({
@@ -51,4 +51,4 @@ exports.pullRequestLabelExplainer = async function labelExplainer() {
       body: PR_EXPLAIN_MESSAGE,
     });
   }
-};
+}
