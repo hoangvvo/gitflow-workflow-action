@@ -15,6 +15,10 @@ inputs:
   slack:
     description: The slack options (channel, name mapping)
     required: false
+  merge_back_from_main:
+    description: Merge back to develop from main instead of release branch
+    required: false
+    default: "false"
 
 runs:
   using: "node16"
