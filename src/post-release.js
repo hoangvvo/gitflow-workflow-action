@@ -60,7 +60,8 @@ async function executeOnRelease() {
   console.log(
     `on-release: ${releaseCandidateType}(${version}): Execute merge workflow`,
   );
-  await tryMerge(currentBranch, Config.developBranch);
+
+  await tryMerge(Config.mergeBackFromProd ? Config.prodBranch : currentBranch, Config.developBranch);
 
   console.log(`on-release: release(${version}): Generating release notes`);
 

@@ -9,6 +9,7 @@ exports.octokit = github.getOctokit(githubToken);
 exports.Config = {
   developBranch: core.getInput("develop_branch"),
   prodBranch: core.getInput("main_branch"),
+  mergeBackFromProd: !!core.getInput("merge_back_from_main"),
   repo: {
     owner: github.context.repo.owner,
     repo: github.context.repo.repo,

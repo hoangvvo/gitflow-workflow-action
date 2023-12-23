@@ -33,10 +33,22 @@ jobs:
         with:
           develop_branch: "develop"
           main_branch: "main"
+          merge_back_from_main: false
           version: ${{ inputs.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
+
+## Inputs
+
+| Name                   | Description                                                                                                             | Default   |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------- |
+| `develop_branch`       | Name of the develop branch                                                                                              | `develop` |
+| `main_branch`          | Name of the main branch                                                                                                 | `main`    |
+| `merge_back_from_main` | If `true`, there will be a merge back from `main` instead of the release branch to `develop` after a release is created | `false`   |
+| `version`              | Version to release                                                                                                      |           |
+
+## Workflows
 
 There are two different workflows covered by this action:
 
