@@ -41,12 +41,12 @@ jobs:
 
 ## Inputs
 
-| Name                   | Description                                                                                                             | Default   |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------- |
-| `develop_branch`       | Name of the develop branch                                                                                              | `develop` |
-| `main_branch`          | Name of the main branch                                                                                                 | `main`    |
-| `merge_back_from_main` | If `true`, there will be a merge back from `main` instead of the release branch to `develop` after a release is created | `false`   |
-| `version`              | Version to release                                                                                                      |           |
+| Name                   | Description                                                                                                               | Default   |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------- | --------- |
+| `develop_branch`       | Name of the develop branch                                                                                                | `develop` |
+| `main_branch`          | Name of the main branch                                                                                                   | `main`    |
+| `merge_back_from_main` | If `"true"`, there will be a merge back from `main` instead of the release branch to `develop` after a release is created | `"false"` |
+| `version`              | Version to release                                                                                                        |           |
 
 ## Outputs
 
@@ -86,7 +86,31 @@ This workflow does several things:
 
 Note: It does not handle the deployment process. That is for your team to implement separately.
 
-### Example: Prefill release summary
+## Integration: Post to Slack
+
+It is often that an anouncement is made to a Slack channel after a release. To do so, specify `SLACK_TOKEN` env and `slack` input.
+
+Alternatively, you can also use the environment variable `SLACK_OPTIONS` instead of `slack` input.
+
+```yaml
+jobs:
+  release_workflow:
+    steps:
+      - name: gitflow-workflow-action release workflows
+        uses: hoangvvo/gitflow-workflow-action@<TAG>
+        with:
+          slack: >
+            {
+              "channel": "hoang-test",
+              "username_mapping": {
+                "hoangvvo": "U03B3E4UPV3"
+              }
+            }
+        env:
+          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+```
+
+## Example: Prefill release summary
 
 Using the `pull_number` output, you can update the PR body with the release summary depending on your PR template.
 
@@ -165,30 +189,6 @@ jobs:
               pull_number,
               body: body.replace("## Release summary", `## Release summary\n\n${releaseSummary}`)
             });
-```
-
-### Integration: Post to Slack
-
-It is often that an anouncement is made to a Slack channel after a release. To do so, specify `SLACK_TOKEN` env and `slack` input.
-
-Alternatively, you can also use the environment variable `SLACK_OPTIONS` instead of `slack` input.
-
-```yaml
-jobs:
-  release_workflow:
-    steps:
-      - name: gitflow-workflow-action release workflows
-        uses: hoangvvo/gitflow-workflow-action@<TAG>
-        with:
-          slack: >
-            {
-              "channel": "hoang-test",
-              "username_mapping": {
-                "hoangvvo": "U03B3E4UPV3"
-              }
-            }
-        env:
-          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
 ```
 
 ## License
