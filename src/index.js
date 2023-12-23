@@ -1,12 +1,8 @@
-// @ts-check
-const core = require("@actions/core");
-const github = require("@actions/github");
-const {
-  pullRequestAutoLabel,
-  pullRequestLabelExplainer,
-} = require("./labeler.js");
-const { executeOnRelease } = require("./post-release.js");
-const { createReleasePR } = require("./release.js");
+import * as core from "@actions/core";
+import * as github from "@actions/github";
+import { pullRequestAutoLabel, pullRequestLabelExplainer } from "./labeler.js";
+import { executeOnRelease } from "./post-release.js";
+import { createReleasePR } from "./release.js";
 
 const start = async () => {
   if (github.context.eventName === "pull_request") {
@@ -23,10 +19,11 @@ const start = async () => {
   } else if (github.context.eventName === "workflow_dispatch") {
     await createReleasePR();
     return;
+  } else {
+    console.log(
+      `gitflow-workflow-action: does not match any eventName. Skipping...`,
+    );
   }
-  console.log(
-    `gitflow-workflow-action: does not match any eventName. Skipping...`
-  );
 };
 
 start()
