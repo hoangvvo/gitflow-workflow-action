@@ -25,5 +25,12 @@ jobs:
           develop_branch: "develop"
           main_branch: "main"
           version: ${{ inputs.version }}
+          slack: >
+            {
+              "channel": "hoang-test",
+              "username_mapping": {
+                "hoangvvo": "U03B3E4UPV3"
+              }
+            }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
