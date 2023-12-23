@@ -104,7 +104,6 @@ async function executeOnRelease() {
   return {
     type: releaseCandidateType,
     version,
-    pull_number: pullRequestNumber,
     release_url: release.html_url,
   };
 }
