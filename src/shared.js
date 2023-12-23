@@ -1,5 +1,5 @@
-import core from "@actions/core";
-import github from "@actions/github";
+import * as core from "@actions/core";
+import * as github from "@actions/github";
 
 const githubToken = process.env.GITHUB_TOKEN;
 if (!githubToken) throw new Error(`process.env.GITHUB_TOKEN is not defined`);

@@ -32396,10 +32396,8 @@ __nccwpck_require__.r(__webpack_exports__);
 
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(2186);
-var core_default = /*#__PURE__*/__nccwpck_require__.n(core);
 // EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
 var github = __nccwpck_require__(5438);
-var github_default = /*#__PURE__*/__nccwpck_require__.n(github);
 // EXTERNAL MODULE: external "assert"
 var external_assert_ = __nccwpck_require__(9491);
 var external_assert_default = /*#__PURE__*/__nccwpck_require__.n(external_assert_);
@@ -32410,15 +32408,15 @@ var external_assert_default = /*#__PURE__*/__nccwpck_require__.n(external_assert
 const githubToken = process.env.GITHUB_TOKEN;
 if (!githubToken) throw new Error(`process.env.GITHUB_TOKEN is not defined`);
 
-const octokit = github_default().getOctokit(githubToken);
+const octokit = github.getOctokit(githubToken);
 
 const Config = {
-  developBranch: core_default().getInput("develop_branch"),
-  prodBranch: core_default().getInput("main_branch"),
-  mergeBackFromProd: !!core_default().getInput("merge_back_from_main"),
+  developBranch: core.getInput("develop_branch"),
+  prodBranch: core.getInput("main_branch"),
+  mergeBackFromProd: !!core.getInput("merge_back_from_main"),
   repo: {
-    owner: (github_default()).context.repo.owner,
-    repo: (github_default()).context.repo.repo,
+    owner: github.context.repo.owner,
+    repo: github.context.repo.repo,
   },
 };
 
@@ -32443,8 +32441,10 @@ See [Gitflow Workflow](https://www.atlassian.com/git/tutorials/comparing-workflo
  * @param {string} baseBranch
  */
 async function tryMerge(headBranch, baseBranch) {
-  console.log(`Trying to merge ${headBranch} branch into ${baseBranch} branch.`)
-  
+  console.log(
+    `Trying to merge ${headBranch} branch into ${baseBranch} branch.`,
+  );
+
   const { data: compareCommitsResult } =
     await octokit.rest.repos.compareCommits({
       ...Config.repo,
@@ -32552,7 +32552,7 @@ const removeHtmlComments = (text) => text.replace(/<!--.*?-->/gs, "");
 
 
 async function pullRequestAutoLabel() {
-  const pullRequestNumber = (github_default()).context.payload.pull_request.number;
+  const pullRequestNumber = github.context.payload.pull_request.number;
   external_assert_default()(
     pullRequestNumber,
     `github.context.payload.pull_request?.number is not defined`,
@@ -32579,7 +32579,7 @@ async function pullRequestAutoLabel() {
 }
 
 async function pullRequestLabelExplainer() {
-  const pullRequestNumber = (github_default()).context.payload.pull_request.number;
+  const pullRequestNumber = github.context.payload.pull_request.number;
   external_assert_default()(
     pullRequestNumber,
     `github.context.payload.pull_request?.number is not defined`,
@@ -32670,17 +32670,22 @@ ${releaseBody}`,
 
 
 
+/**
+ * @returns {Promise<Result>}
+ */
 async function executeOnRelease() {
-  if (!(github_default()).context.payload.pull_request.merged) {
+  if (!github.context.payload.pull_request.merged) {
     console.log(`on-release: pull request is not merged. Exiting...`);
-    return;
+    return {
+      type: "none",
+    };
   }
 
   /**
    * Precheck
    * Check if the pull request has a release label, targeting main branch, and if it was merged
    */
-  const pullRequestNumber = (github_default()).context.payload.pull_request.number;
+  const pullRequestNumber = github.context.payload.pull_request.number;
   external_assert_default()(
     pullRequestNumber,
     `github.context.payload.pull_request?.number is not defined`,
@@ -32692,7 +32697,10 @@ async function executeOnRelease() {
   });
 
   const releaseCandidateType = isReleaseCandidate(pullRequest, true);
-  if (!releaseCandidateType) return;
+  if (!releaseCandidateType)
+    return {
+      type: "none",
+    };
 
   const currentBranch = pullRequest.head.ref;
 
@@ -32739,12 +32747,15 @@ async function executeOnRelease() {
     `on-release: ${releaseCandidateType}(${version}): Execute merge workflow`,
   );
 
-  await tryMerge(Config.mergeBackFromProd ? Config.prodBranch : currentBranch, Config.developBranch);
+  await tryMerge(
+    Config.mergeBackFromProd ? Config.prodBranch : currentBranch,
+    Config.developBranch,
+  );
 
   console.log(`on-release: success`);
 
   console.log(`post-release: process release ${release.name}`);
-  const slackInput = core_default().getInput("slack") || process.env.SLACK_OPTIONS;
+  const slackInput = core.getInput("slack") || process.env.SLACK_OPTIONS;
   if (slackInput) {
     /**
      * Slack integration
@@ -32753,6 +32764,13 @@ async function executeOnRelease() {
   }
 
   console.log(`post-release: success`);
+
+  return {
+    type: releaseCandidateType,
+    version,
+    pull_number: pullRequestNumber,
+    release_url: release.html_url,
+  };
 }
 
 
@@ -32765,8 +32783,11 @@ async function executeOnRelease() {
 
 
 
+/**
+ * @returns {Promise<Result>}
+ */
 async function createReleasePR() {
-  const version = core_default().getInput("version");
+  const version = core.getInput("version");
 
   console.log(`create_release: Checking release version`);
   external_assert_default()(version, "input.version is not defined");
@@ -32825,8 +32846,15 @@ async function createReleasePR() {
   await createExplainComment(pullRequest.number);
 
   console.log(
-    `create_release: Pull request has been created at ${pullRequest.html_url}`
+    `create_release: Pull request has been created at ${pullRequest.html_url}`,
   );
+
+  return {
+    type: "release",
+    pull_number: pullRequest.number,
+    version,
+    release_branch: releaseBranch,
+  };
 }
 
 ;// CONCATENATED MODULE: ./src/index.js
@@ -32837,24 +32865,29 @@ async function createReleasePR() {
 
 
 const start = async () => {
+  /**
+   * @type {Result | undefined}
+   */
+  let res;
   if (github.context.eventName === "pull_request") {
     if (github.context.payload.action === "closed") {
-      await executeOnRelease();
-      return;
+      res = await executeOnRelease();
     } else if (github.context.payload.action === "opened") {
       await pullRequestAutoLabel();
-      return;
     } else if (github.context.payload.action === "labeled") {
       await pullRequestLabelExplainer();
-      return;
     }
   } else if (github.context.eventName === "workflow_dispatch") {
-    await createReleasePR();
-    return;
+    res = await createReleasePR();
   } else {
     console.log(
       `gitflow-workflow-action: does not match any eventName. Skipping...`,
     );
+  }
+  if (res) {
+    for (const key of Object.keys(res)) {
+      core.setOutput(key, res[key]);
+    }
   }
 };
 

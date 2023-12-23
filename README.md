@@ -48,6 +48,18 @@ jobs:
 | `merge_back_from_main` | If `true`, there will be a merge back from `main` instead of the release branch to `develop` after a release is created | `false`   |
 | `version`              | Version to release                                                                                                      |           |
 
+## Outputs
+
+Depending on the workflow types, some outputs might be present:
+
+| Name             | Description                                      |
+| ---------------- | ------------------------------------------------ |
+| `type`           | Type of the release: `release`, `hotfix`, `none` |
+| `version`        | Version of the release.                          |
+| `pull_number`    | Pull request number.                             |
+| `release_branch` | Name of the release branch.                      |
+| `release_url`    | URL to the release page.                         |
+
 ## Workflows
 
 There are two different workflows covered by this action:
