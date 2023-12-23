@@ -63,39 +63,15 @@ exports.executeOnRelease = async function executeOnRelease() {
   await tryMerge(currentBranch, Config.developBranch);
 
   console.log(`on-release: release(${version}): Generating release notes`);
-  const { data: latestRelease } = await octokit.rest.repos
-    .getLatestRelease(Config.repo)
-    .catch(() => ({ data: null }));
-
-  const { data: releaseNotes } = await octokit.rest.repos.generateReleaseNotes({
-    ...Config.repo,
-    tag_name: version,
-    target_commitish: Config.prodBranch,
-    previous_tag_name: latestRelease?.tag_name,
-  });
-
-  let releaseNotesBody = releaseNotes.body;
 
   const pullRequestBody = pullRequest.body;
-  if (pullRequestBody) {
-    // try to extract release summary
-    const lines = pullRequestBody.split(`\n`);
-    const sepIndex = lines.findIndex((line) => line.startsWith("---"));
-    if (sepIndex !== -1) {
-      const summary = lines.slice(sepIndex + 1).join(`\n`);
-      releaseNotesBody = `${releaseNotesBody}
-
-## Release summary
-${summary}`;
-    }
-  }
 
   const { data: release } = await octokit.rest.repos.createRelease({
     ...Config.repo,
     tag_name: version,
     target_commitish: Config.prodBranch,
-    name: releaseNotes.name || version,
-    body: releaseNotesBody,
+    name: version,
+    body: pullRequestBody,
   });
 
   console.log(`on-release: success`);
