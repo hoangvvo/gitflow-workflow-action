@@ -4,15 +4,9 @@ A GitHub actions that automate the [Gitflow workflow](https://www.atlassian.com/
 
 ![Gitflow](https://user-images.githubusercontent.com/40987398/187112231-30c0f1f1-8153-44f7-82b3-df6ff475e525.svg)
 
-## Create "Deploy to production" PR
+## Usage
 
-![image](https://user-images.githubusercontent.com/40987398/187032548-b51992fa-ae11-48e4-a4c7-1cd815d173f7.png)
-
-We can add a workflow that creates a PR for `release`. It will create a PR with release note that contains all the new changes in the body. The new branch would be called `release/x.y.z`.
-
-This basically "freezes" the `develop` branch for releases. Other PRs can be merged to `develop` during the `release` branch lifetime without affecting it.
-
-Create `.github/workflows/create-release.yml`
+Create `.github/workflows/release.yml`:
 
 ```yaml
 on:
@@ -22,36 +16,13 @@ on:
         type: string
         required: true
         description: "Version to release"
-
-name: Create release
-
-jobs:
-  pre_release:
-    runs-on: ubuntu-latest
-    steps:
-      - name: gitflow-workflow-action create release
-        uses: hoangvvo/gitflow-workflow-action
-        with:
-          develop_branch: "develop"
-          main_branch: "main"
-          version: ${{ inputs.version }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
-
-## Workflows for release lifecycle
-
-Create `.github/workflows/post-release.yml`
-
-```yaml
-on:
   pull_request:
     types:
       - opened
       - closed
       - labeled
 
-name: Release workflows
+name: Release
 
 jobs:
   release_workflow:
@@ -62,9 +33,26 @@ jobs:
         with:
           develop_branch: "develop"
           main_branch: "main"
+          version: ${{ inputs.version }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
+
+There are two different workflows covered by this action:
+
+### Create "Deploy to production" PR
+
+![image](https://user-images.githubusercontent.com/40987398/187032548-b51992fa-ae11-48e4-a4c7-1cd815d173f7.png)
+
+This applies when this workflow is triggered from the "Run workflow" window (`workflow_dispatch`).
+
+The process of creating a release start with creating a PR with release note that contains all the new changes in the body. The new branch would be called `release/x.y.z`.
+
+This basically "freezes" the `develop` branch for releases. Other PRs can be merged to `develop` during the `release` branch lifetime without affecting it.
+
+### Workflows for release lifecycle
+
+This detects when the pull request created with the use case above.
 
 This workflow does several things:
 
@@ -77,17 +65,15 @@ Note: It does not handle the deployment process. That is for your team to implem
 
 It is often that an anouncement is made to a Slack channel after a release. To do so, specify `SLACK_TOKEN` env and `slack` input.
 
+Alternatively, you can also use the environment variable `SLACK_OPTIONS` instead of `slack` input.
+
 ```yaml
 jobs:
   release_workflow:
-    if: github.event.pull_request.merged == true
-    runs-on: ubuntu-latest
     steps:
       - name: gitflow-workflow-action release workflows
         uses: hoangvvo/gitflow-workflow-action
         with:
-          develop_branch: "develop"
-          main_branch: "main"
           slack: >
             {
               "channel": "hoang-test",
