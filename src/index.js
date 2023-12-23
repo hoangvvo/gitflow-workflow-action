@@ -5,24 +5,29 @@ import { executeOnRelease } from "./post-release.js";
 import { createReleasePR } from "./release.js";
 
 const start = async () => {
+  /**
+   * @type {Result | undefined}
+   */
+  let res;
   if (github.context.eventName === "pull_request") {
     if (github.context.payload.action === "closed") {
-      await executeOnRelease();
-      return;
+      res = await executeOnRelease();
     } else if (github.context.payload.action === "opened") {
       await pullRequestAutoLabel();
-      return;
     } else if (github.context.payload.action === "labeled") {
       await pullRequestLabelExplainer();
-      return;
     }
   } else if (github.context.eventName === "workflow_dispatch") {
-    await createReleasePR();
-    return;
+    res = await createReleasePR();
   } else {
     console.log(
       `gitflow-workflow-action: does not match any eventName. Skipping...`,
     );
+  }
+  if (res) {
+    for (const key of Object.keys(res)) {
+      core.setOutput(key, res[key]);
+    }
   }
 };
 

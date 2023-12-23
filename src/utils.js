@@ -7,8 +7,10 @@ import { Config, octokit } from "./shared.js";
  * @param {string} baseBranch
  */
 export async function tryMerge(headBranch, baseBranch) {
-  console.log(`Trying to merge ${headBranch} branch into ${baseBranch} branch.`)
-  
+  console.log(
+    `Trying to merge ${headBranch} branch into ${baseBranch} branch.`,
+  );
+
   const { data: compareCommitsResult } =
     await octokit.rest.repos.compareCommits({
       ...Config.repo,

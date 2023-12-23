@@ -5,6 +5,9 @@ import { Constants } from "./constants.js";
 import { Config, octokit } from "./shared.js";
 import { createExplainComment } from "./utils.js";
 
+/**
+ * @returns {Promise<Result>}
+ */
 export async function createReleasePR() {
   const version = core.getInput("version");
 
@@ -66,6 +69,13 @@ export async function createReleasePR() {
   await createExplainComment(pullRequest.number);
 
   console.log(
-    `create_release: Pull request has been created at ${pullRequest.html_url}`
+    `create_release: Pull request has been created at ${pullRequest.html_url}`,
   );
+
+  return {
+    type: "release",
+    pull_number: pullRequest.number,
+    version,
+    release_branch: releaseBranch,
+  };
 }

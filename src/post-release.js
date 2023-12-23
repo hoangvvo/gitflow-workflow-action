@@ -6,10 +6,15 @@ import { sendToSlack } from "./integration-slack";
 import { Config, octokit } from "./shared.js";
 import { isReleaseCandidate, tryMerge } from "./utils.js";
 
+/**
+ * @returns {Promise<Result>}
+ */
 async function executeOnRelease() {
   if (!github.context.payload.pull_request?.merged) {
     console.log(`on-release: pull request is not merged. Exiting...`);
-    return;
+    return {
+      type: "none",
+    };
   }
 
   /**
@@ -28,7 +33,10 @@ async function executeOnRelease() {
   });
 
   const releaseCandidateType = isReleaseCandidate(pullRequest, true);
-  if (!releaseCandidateType) return;
+  if (!releaseCandidateType)
+    return {
+      type: "none",
+    };
 
   const currentBranch = pullRequest.head.ref;
 
@@ -75,7 +83,10 @@ async function executeOnRelease() {
     `on-release: ${releaseCandidateType}(${version}): Execute merge workflow`,
   );
 
-  await tryMerge(Config.mergeBackFromProd ? Config.prodBranch : currentBranch, Config.developBranch);
+  await tryMerge(
+    Config.mergeBackFromProd ? Config.prodBranch : currentBranch,
+    Config.developBranch,
+  );
 
   console.log(`on-release: success`);
 
@@ -89,6 +100,13 @@ async function executeOnRelease() {
   }
 
   console.log(`post-release: success`);
+
+  return {
+    type: releaseCandidateType,
+    version,
+    pull_number: pullRequestNumber,
+    release_url: release.html_url,
+  };
 }
 
 export { executeOnRelease };
