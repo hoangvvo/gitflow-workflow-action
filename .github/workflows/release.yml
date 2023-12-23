@@ -17,8 +17,10 @@ jobs:
   release_workflow:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
       - name: gitflow-workflow-action release workflows
-        uses: hoangvvo/gitflow-workflow-action
+        uses: ./
         with:
           develop_branch: "develop"
           main_branch: "main"

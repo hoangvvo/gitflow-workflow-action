@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: gitflow-workflow-action release workflows
-        uses: hoangvvo/gitflow-workflow-action
+        uses: hoangvvo/gitflow-workflow-action@<TAG>
         with:
           develop_branch: "develop"
           main_branch: "main"
