@@ -50,9 +50,6 @@ on:
       - opened
       - closed
       - labeled
-  release:
-    types:
-      - created
 
 name: Release workflows
 
