@@ -52,13 +52,14 @@ jobs:
 
 Depending on the workflow types, some outputs might be present:
 
-| Name             | Description                                      |
-| ---------------- | ------------------------------------------------ |
-| `type`           | Type of the release: `release`, `hotfix`, `none` |
-| `version`        | Version of the release.                          |
-| `pull_number`    | Pull request number.                             |
-| `release_branch` | Name of the release branch.                      |
-| `release_url`    | URL to the release page.                         |
+| Name                      | Description                                                                                                                |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `type`                    | Type of the release: `release`, `hotfix`, `none`                                                                           |
+| `version`                 | Version of the release.                                                                                                    |
+| `pull_number`             | Pull request number. (only for `workflow_dispatch`)                                                                        |
+| `pull_numbers_in_release` | Comma separated pull request numbers as shown in the What's changed section of the release. (only for `workflow_dispatch`) |
+| `release_branch`          | Name of the release branch. (only after merging release PR)                                                                |
+| `release_url`             | URL to the release page. (only after merging release PR)                                                                   |
 
 ## Workflows
 
@@ -85,6 +86,87 @@ This workflow does several things:
 
 Note: It does not handle the deployment process. That is for your team to implement separately.
 
+### Example: Prefill release summary
+
+Using the `pull_number` output, you can update the PR body with the release summary depending on your PR template.
+
+Let's assume the PR template is:
+
+```md
+## What does this PR do?
+
+xxx <-- we want to extract this
+
+## How should this be manually tested?
+
+xxx
+
+## What are the requirements to deploy to production?
+
+xxx
+
+## Any background context you want to provide beyond Shortcut?
+
+xxx
+
+## Screenshots (if appropriate)
+
+xxx
+
+## Any Security implications
+
+xxx
+```
+
+```yaml
+jobs:
+  release_workflow:
+    runs-on: ubuntu-latest
+    steps:
+      - id: release_workflow
+        name: gitflow-workflow-action release workflows
+        uses: hoangvvo/gitflow-workflow-action@<TAG>
+      - name: prefill release summary
+        if: ${{ steps.release_workflow.outputs.type == 'release' and steps.release_workflow.outputs.pull_number and steps.release_workflow.outputs.pull_numbers_in_release }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pull_number = {{ steps.release_workflow.outputs.pull_number }};
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number,
+            });
+
+            const mergedPrNumbers = "${{ steps.release_workflow.outputs.pull_numbers_in_release }}".split(',').map(Number);
+            const body = context.payload.pull_request.body;
+
+            // Get the PRs and parse the release summary
+            const mergedPrs = await Promise.all(mergedPrNumbers.map(async (prNumber) => {
+              const pr = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber
+              });
+              const regex = /## What does this PR do\?\n\n(.*?)\n\n##/s;
+              if (!pr.data.body) {
+                return;
+              }
+              const regex = /\#\# What does this PR do\?([\s\S]*?)\n\#\#/gm;
+              const match = regex.exec(pr.data.body)
+              return match?.[1]?.trim();
+            })).then((prs) => prs.filter(Boolean));
+            const releaseSummary = mergedPrs.join('\n');
+
+            // Update the PR body
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number,
+              body: body.replace("## Release summary", `## Release summary\n\n${releaseSummary}`)
+            });
+```
+
 ### Integration: Post to Slack
 
 It is often that an anouncement is made to a Slack channel after a release. To do so, specify `SLACK_TOKEN` env and `slack` input.
@@ -96,7 +178,7 @@ jobs:
   release_workflow:
     steps:
       - name: gitflow-workflow-action release workflows
-        uses: hoangvvo/gitflow-workflow-action
+        uses: hoangvvo/gitflow-workflow-action@<TAG>
         with:
           slack: >
             {
