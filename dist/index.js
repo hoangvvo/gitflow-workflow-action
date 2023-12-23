@@ -32133,29 +32133,6 @@ function factory(key, options) {
 
 /***/ }),
 
-/***/ 9297:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-const core = __nccwpck_require__(2186);
-const github = __nccwpck_require__(5438);
-
-const githubToken = process.env.GITHUB_TOKEN;
-if (!githubToken) throw new Error(`process.env.GITHUB_TOKEN is not defined`);
-
-exports.K = github.getOctokit(githubToken);
-
-exports.D = {
-  developBranch: core.getInput("develop_branch"),
-  prodBranch: core.getInput("main_branch"),
-  repo: {
-    owner: github.context.repo.owner,
-    repo: github.context.repo.repo,
-  },
-};
-
-
-/***/ }),
-
 /***/ 2877:
 /***/ ((module) => {
 
@@ -32426,8 +32403,25 @@ var github_default = /*#__PURE__*/__nccwpck_require__.n(github);
 // EXTERNAL MODULE: external "assert"
 var external_assert_ = __nccwpck_require__(9491);
 var external_assert_default = /*#__PURE__*/__nccwpck_require__.n(external_assert_);
-// EXTERNAL MODULE: ./src/shared.js
-var shared = __nccwpck_require__(9297);
+;// CONCATENATED MODULE: ./src/shared.js
+
+
+
+const githubToken = process.env.GITHUB_TOKEN;
+if (!githubToken) throw new Error(`process.env.GITHUB_TOKEN is not defined`);
+
+const octokit = github_default().getOctokit(githubToken);
+
+const Config = {
+  developBranch: core_default().getInput("develop_branch"),
+  prodBranch: core_default().getInput("main_branch"),
+  mergeBackFromProd: !!core_default().getInput("merge_back_from_main"),
+  repo: {
+    owner: (github_default()).context.repo.owner,
+    repo: (github_default()).context.repo.repo,
+  },
+};
+
 ;// CONCATENATED MODULE: ./src/constants.js
 
 
@@ -32436,7 +32430,7 @@ const Constants = {
   Hotfix: "hotfix",
 };
 
-const PR_EXPLAIN_MESSAGE = `Merging this pull request will trigger Gitflow release actions. A release would be created and this branch would be merged back to ${shared/* Config.developBranch */.D.developBranch} if needed.
+const PR_EXPLAIN_MESSAGE = `Merging this pull request will trigger Gitflow release actions. A release would be created and ${Config.mergeBackFromProd ? `${Config.prodBranch}` : "this branch"} would be merged back to ${Config.developBranch} if needed.
 See [Gitflow Workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow) for more details.`;
 
 ;// CONCATENATED MODULE: ./src/utils.js
@@ -32449,9 +32443,11 @@ See [Gitflow Workflow](https://www.atlassian.com/git/tutorials/comparing-workflo
  * @param {string} baseBranch
  */
 async function tryMerge(headBranch, baseBranch) {
+  console.log(`Trying to merge ${headBranch} branch into ${baseBranch} branch.`)
+  
   const { data: compareCommitsResult } =
-    await shared/* octokit.rest.repos.compareCommits */.K.rest.repos.compareCommits({
-      ...shared/* Config.repo */.D.repo,
+    await octokit.rest.repos.compareCommits({
+      ...Config.repo,
       base: baseBranch,
       head: headBranch,
     });
@@ -32461,16 +32457,16 @@ async function tryMerge(headBranch, baseBranch) {
       `${headBranch} branch is not up to date with ${baseBranch} branch. Attempting to merge.`,
     );
     try {
-      await shared/* octokit.rest.repos.merge */.K.rest.repos.merge({
-        ...shared/* Config.repo */.D.repo,
+      await octokit.rest.repos.merge({
+        ...Config.repo,
         base: baseBranch,
         head: headBranch,
       });
     } catch (err) {
       // could not automatically merge
       // try creating a PR
-      await shared/* octokit.rest.pulls.create */.K.rest.pulls.create({
-          ...shared/* Config.repo */.D.repo,
+      await octokit.rest.pulls.create({
+          ...Config.repo,
           base: baseBranch,
           head: headBranch,
           title: `Merge ${headBranch} branch into ${baseBranch}`,
@@ -32493,7 +32489,7 @@ See [Gitflow Workflow](https://www.atlassian.com/git/tutorials/comparing-workflo
  * @param {import("@octokit/plugin-rest-endpoint-methods").RestEndpointMethodTypes["pulls"]["get"]["response"]["data"]} pullRequest
  */
 function isReleaseCandidate(pullRequest, shouldLog = false) {
-  if (pullRequest.base.ref !== shared/* Config.prodBranch */.D.prodBranch) {
+  if (pullRequest.base.ref !== Config.prodBranch) {
     if (shouldLog)
       console.log(
         `on-release: ${pullRequest.number} does not merge to main_branch. Exiting...`,
@@ -32519,8 +32515,8 @@ function isReleaseCandidate(pullRequest, shouldLog = false) {
  * @param {number} pullRequestNumber
  */
 async function createExplainComment(pullRequestNumber) {
-  const existingComments = await shared/* octokit.rest.issues.listComments */.K.rest.issues.listComments({
-    ...shared/* Config.repo */.D.repo,
+  const existingComments = await octokit.rest.issues.listComments({
+    ...Config.repo,
     issue_number: pullRequestNumber,
   });
 
@@ -32535,8 +32531,8 @@ async function createExplainComment(pullRequestNumber) {
     return;
   }
 
-  await shared/* octokit.rest.issues.createComment */.K.rest.issues.createComment({
-    ...shared/* Config.repo */.D.repo,
+  await octokit.rest.issues.createComment({
+    ...Config.repo,
     issue_number: pullRequestNumber,
     body: PR_EXPLAIN_MESSAGE,
   });
@@ -32562,20 +32558,20 @@ async function pullRequestAutoLabel() {
     `github.context.payload.pull_request?.number is not defined`,
   );
 
-  const { data: pullRequest } = await shared/* octokit.rest.pulls.get */.K.rest.pulls.get({
-    ...shared/* Config.repo */.D.repo,
+  const { data: pullRequest } = await octokit.rest.pulls.get({
+    ...Config.repo,
     pull_number: pullRequestNumber,
   });
 
   if (pullRequest.head.ref.startsWith("hotfix/")) {
-    await shared/* octokit.rest.issues.addLabels */.K.rest.issues.addLabels({
-      ...shared/* Config.repo */.D.repo,
+    await octokit.rest.issues.addLabels({
+      ...Config.repo,
       issue_number: pullRequest.number,
       labels: [Constants.Hotfix],
     });
   } else if (pullRequest.head.ref.startsWith("release/")) {
-    await shared/* octokit.rest.issues.addLabels */.K.rest.issues.addLabels({
-      ...shared/* Config.repo */.D.repo,
+    await octokit.rest.issues.addLabels({
+      ...Config.repo,
       issue_number: pullRequest.number,
       labels: [Constants.Release],
     });
@@ -32589,14 +32585,14 @@ async function pullRequestLabelExplainer() {
     `github.context.payload.pull_request?.number is not defined`,
   );
 
-  const { data: pullRequest } = await shared/* octokit.rest.pulls.get */.K.rest.pulls.get({
-    ...shared/* Config.repo */.D.repo,
+  const { data: pullRequest } = await octokit.rest.pulls.get({
+    ...Config.repo,
     pull_number: pullRequestNumber,
   });
 
   if (isReleaseCandidate(pullRequest)) {
-    await shared/* octokit.rest.issues.createComment */.K.rest.issues.createComment({
-      ...shared/* Config.repo */.D.repo,
+    await octokit.rest.issues.createComment({
+      ...Config.repo,
       issue_number: pullRequestNumber,
       body: PR_EXPLAIN_MESSAGE,
     });
@@ -32656,7 +32652,7 @@ async function sendToSlack(slackInput, release) {
   await slackWebClient.chat.postMessage({
     text: `<${release.html_url}|Release ${
       release.name || release.tag_name
-    }> to \`${shared/* Config.repo.owner */.D.repo.owner}/${shared/* Config.repo.repo */.D.repo.repo}\`
+    }> to \`${Config.repo.owner}/${Config.repo.repo}\`
 
 ${releaseBody}`,
     channel: slackOpts.channel,
@@ -32675,7 +32671,7 @@ ${releaseBody}`,
 
 
 async function executeOnRelease() {
-  if (!github.context.payload.pull_request.merged) {
+  if (!(github_default()).context.payload.pull_request.merged) {
     console.log(`on-release: pull request is not merged. Exiting...`);
     return;
   }
@@ -32684,14 +32680,14 @@ async function executeOnRelease() {
    * Precheck
    * Check if the pull request has a release label, targeting main branch, and if it was merged
    */
-  const pullRequestNumber = github.context.payload.pull_request.number;
+  const pullRequestNumber = (github_default()).context.payload.pull_request.number;
   external_assert_default()(
     pullRequestNumber,
     `github.context.payload.pull_request?.number is not defined`,
   );
 
-  const { data: pullRequest } = await shared/* octokit.rest.pulls.get */.K.rest.pulls.get({
-    ...shared/* Config.repo */.D.repo,
+  const { data: pullRequest } = await octokit.rest.pulls.get({
+    ...Config.repo,
     pull_number: pullRequestNumber,
   });
 
@@ -32722,32 +32718,33 @@ async function executeOnRelease() {
     ).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
   }
 
-  /**
-   * Merging the release or hotfix branch back to the develop branch if needed
-   */
-  console.log(
-    `on-release: ${releaseCandidateType}(${version}): Execute merge workflow`,
-  );
-  await tryMerge(currentBranch, shared/* Config.developBranch */.D.developBranch);
-
   console.log(`on-release: release(${version}): Generating release notes`);
 
   const pullRequestBody = pullRequest.body;
 
   external_assert_default()(pullRequestBody, `pull request body is not defined`);
 
-  const { data: release } = await shared/* octokit.rest.repos.createRelease */.K.rest.repos.createRelease({
-    ...shared/* Config.repo */.D.repo,
+  const { data: release } = await octokit.rest.repos.createRelease({
+    ...Config.repo,
     tag_name: version,
-    target_commitish: shared/* Config.prodBranch */.D.prodBranch,
+    target_commitish: Config.prodBranch,
     name: version,
     body: pullRequestBody,
   });
 
+  /**
+   * Merging the release or hotfix branch back to the develop branch if needed
+   */
+  console.log(
+    `on-release: ${releaseCandidateType}(${version}): Execute merge workflow`,
+  );
+
+  await tryMerge(Config.mergeBackFromProd ? Config.prodBranch : currentBranch, Config.developBranch);
+
   console.log(`on-release: success`);
 
   console.log(`post-release: process release ${release.name}`);
-  const slackInput = core.getInput("slack") || process.env.SLACK_OPTIONS;
+  const slackInput = core_default().getInput("slack") || process.env.SLACK_OPTIONS;
   if (slackInput) {
     /**
      * Slack integration
@@ -32778,13 +32775,13 @@ async function createReleasePR() {
 
   // developBranch and mainBranch are almost identical
   // so we can use developBranch for ahead-of-time release note
-  const { data: latestRelease } = await shared/* octokit.rest.repos.getLatestRelease */.K.rest.repos.getLatestRelease(shared/* Config.repo */.D.repo)
+  const { data: latestRelease } = await octokit.rest.repos.getLatestRelease(Config.repo)
     .catch(() => ({ data: null }));
 
-  const { data: releaseNotes } = await shared/* octokit.rest.repos.generateReleaseNotes */.K.rest.repos.generateReleaseNotes({
-    ...shared/* Config.repo */.D.repo,
+  const { data: releaseNotes } = await octokit.rest.repos.generateReleaseNotes({
+    ...Config.repo,
     tag_name: version,
-    target_commitish: shared/* Config.developBranch */.D.developBranch,
+    target_commitish: Config.developBranch,
     previous_tag_name: latestRelease?.tag_name,
   });
 
@@ -32792,35 +32789,35 @@ async function createReleasePR() {
   const releaseBranch = `release/${version}`;
 
   const developBranchSha = (
-    await shared/* octokit.rest.repos.getBranch */.K.rest.repos.getBranch({
-      ...shared/* Config.repo */.D.repo,
-      branch: shared/* Config.developBranch */.D.developBranch,
+    await octokit.rest.repos.getBranch({
+      ...Config.repo,
+      branch: Config.developBranch,
     })
   ).data.commit.sha;
 
   // create release branch from latest sha of develop branch
-  await shared/* octokit.rest.git.createRef */.K.rest.git.createRef({
-    ...shared/* Config.repo */.D.repo,
+  await octokit.rest.git.createRef({
+    ...Config.repo,
     ref: `refs/heads/${releaseBranch}`,
     sha: developBranchSha,
   });
 
   console.log(`create_release: Creating Pull Request`);
 
-  const { data: pullRequest } = await shared/* octokit.rest.pulls.create */.K.rest.pulls.create({
-    ...shared/* Config.repo */.D.repo,
+  const { data: pullRequest } = await octokit.rest.pulls.create({
+    ...Config.repo,
     title: `Release ${releaseNotes.name || version}`,
     body: `${releaseNotes.body}
     
 ## Release summary
 `,
     head: releaseBranch,
-    base: shared/* Config.prodBranch */.D.prodBranch,
+    base: Config.prodBranch,
     maintainer_can_modify: false,
   });
 
-  await shared/* octokit.rest.issues.addLabels */.K.rest.issues.addLabels({
-    ...shared/* Config.repo */.D.repo,
+  await octokit.rest.issues.addLabels({
+    ...Config.repo,
     issue_number: pullRequest.number,
     labels: [Constants.Release],
   });

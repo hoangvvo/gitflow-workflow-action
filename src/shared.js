@@ -1,12 +1,12 @@
-const core = require("@actions/core");
-const github = require("@actions/github");
+import core from "@actions/core";
+import github from "@actions/github";
 
 const githubToken = process.env.GITHUB_TOKEN;
 if (!githubToken) throw new Error(`process.env.GITHUB_TOKEN is not defined`);
 
-exports.octokit = github.getOctokit(githubToken);
+export const octokit = github.getOctokit(githubToken);
 
-exports.Config = {
+export const Config = {
   developBranch: core.getInput("develop_branch"),
   prodBranch: core.getInput("main_branch"),
   mergeBackFromProd: !!core.getInput("merge_back_from_main"),
