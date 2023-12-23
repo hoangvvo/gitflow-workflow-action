@@ -1,5 +1,5 @@
 // @ts-check
-import core from "@actions/core";
+import * as core from "@actions/core";
 import assert from "assert";
 import { Constants } from "./constants.js";
 import { Config, octokit } from "./shared.js";

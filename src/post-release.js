@@ -1,6 +1,6 @@
 // @ts-check
-import core from "@actions/core";
-import github from "@actions/github";
+import * as core from "@actions/core";
+import * as github from "@actions/github";
 import assert from "assert";
 import { sendToSlack } from "./integration-slack";
 import { Config, octokit } from "./shared.js";

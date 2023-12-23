@@ -1,5 +1,5 @@
 // @ts-check
-import github from "@actions/github";
+import * as github from "@actions/github";
 import assert from "assert";
 import { Constants, PR_EXPLAIN_MESSAGE } from "./constants";
 import { Config, octokit } from "./shared.js";
