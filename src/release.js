@@ -6,7 +6,7 @@ import { Config, octokit } from "./shared.js";
 import { createExplainComment } from "./utils.js";
 
 /**
- * @returns {Promise<Result>}
+ * @returns {Promise<import("./types.js").Result>}
  */
 export async function createReleasePR() {
   const version = core.getInput("version");

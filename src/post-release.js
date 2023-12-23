@@ -7,7 +7,7 @@ import { Config, octokit } from "./shared.js";
 import { isReleaseCandidate, tryMerge } from "./utils.js";
 
 /**
- * @returns {Promise<Result>}
+ * @returns {Promise<import("./types.js").Result>}
  */
 async function executeOnRelease() {
   if (!github.context.payload.pull_request?.merged) {
