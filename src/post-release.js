@@ -54,15 +54,6 @@ async function executeOnRelease() {
     ).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
   }
 
-  /**
-   * Merging the release or hotfix branch back to the develop branch if needed
-   */
-  console.log(
-    `on-release: ${releaseCandidateType}(${version}): Execute merge workflow`,
-  );
-
-  await tryMerge(Config.mergeBackFromProd ? Config.prodBranch : currentBranch, Config.developBranch);
-
   console.log(`on-release: release(${version}): Generating release notes`);
 
   const pullRequestBody = pullRequest.body;
@@ -76,6 +67,15 @@ async function executeOnRelease() {
     name: version,
     body: pullRequestBody,
   });
+
+  /**
+   * Merging the release or hotfix branch back to the develop branch if needed
+   */
+  console.log(
+    `on-release: ${releaseCandidateType}(${version}): Execute merge workflow`,
+  );
+
+  await tryMerge(Config.mergeBackFromProd ? Config.prodBranch : currentBranch, Config.developBranch);
 
   console.log(`on-release: success`);
 
