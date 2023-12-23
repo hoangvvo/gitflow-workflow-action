@@ -19119,20 +19119,35 @@ exports.sendToSlack = async (slackInput, release) => {
 
   const slackWebClient = new SlackWebClient(slackToken);
 
-  const username_mapping = slackOpts["username_mapping"] || {};
-
   let releaseBody = release.body || "";
 
+  // replace ## title with **title**
+  releaseBody = releaseBody.replace(/## (.*)/g, `*$1*`);
+
+  // replace * with for list
+  releaseBody = releaseBody.replaceAll(`\n* `, `\n- `);
+
+  // rewrite changelog entries to format
+  // [title](link) by name
+  releaseBody = releaseBody.replace(
+    /- (.*) by (.*) in (.*)/g,
+    `- <$3|$1> by $2`
+  );
+
+  const username_mapping = slackOpts["username_mapping"] || {};
   for (const [username, slackUserId] of Object.entries(username_mapping)) {
     releaseBody = releaseBody.replaceAll(`@${username}`, `<@${slackUserId}>`);
   }
 
   await slackWebClient.chat.postMessage({
-    text: `<${release.url}|*Release ${release.name} to ${Config.repo.owner}/${Config.repo.repo}*>
+    text: `<${release.html_url}|Release ${
+      release.name || release.tag_name
+    }> to \`${Config.repo.owner}/${Config.repo.repo}\`
 
 ${releaseBody}`,
     channel: slackOpts.channel,
     icon_url: "https://avatars.githubusercontent.com/in/15368?s=88&v=4",
+    mrkdwn: true,
   });
 };
 
@@ -19237,44 +19252,14 @@ exports.executeOnRelease = async function executeOnRelease() {
 
   const currentBranch = pullRequest.head.ref;
 
+  let version = "";
+
   if (releaseCandidateType === "release") {
     /**
      * Creating a release
      */
 
-    const version = currentBranch.substring("release/".length);
-
-    /**
-     * Merging the release branch back to the develop branch if needed
-     */
-    console.log(`on-release: release(${version}): Execute merge workflow`);
-    await tryMerge(currentBranch, Config.developBranch);
-
-    console.log(`on-release: release(${version}): Generating release notes`);
-    const { data: latestRelease } = await octokit.rest.repos
-      .getLatestRelease(Config.repo)
-      .catch(() => ({ data: null }));
-
-    const { data: releaseNotes } =
-      await octokit.rest.repos.generateReleaseNotes({
-        ...Config.repo,
-        tag_name: version,
-        target_commitish: Config.developBranch,
-        previous_tag_name: latestRelease?.tag_name,
-      });
-
-    console.log(`on-release:release(${version}): Creating GitHub release`);
-    await octokit.rest.repos.createRelease({
-      ...Config.repo,
-      tag_name: version,
-      target_commitish: Config.prodBranch,
-      name: releaseNotes.name,
-      body: releaseNotes.body,
-    });
-
-    console.log(`on-release: success`);
-
-    return;
+    version = currentBranch.substring("release/".length);
   } else if (releaseCandidateType === "hotfix") {
     /**
      * Creating a hotfix release
@@ -19282,50 +19267,64 @@ exports.executeOnRelease = async function executeOnRelease() {
     const now = pullRequest.merged_at
       ? new Date(pullRequest.merged_at)
       : new Date();
-    const version = `hotfix-${now.getFullYear()}${String(
-      now.getMonth() + 1
-    ).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}${String(
+    version = `hotfix-${now.getFullYear()}${String(now.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}${String(now.getDate()).padStart(2, "0")}${String(
       now.getHours()
     ).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
-
-    /**
-     * Merging the hotfix branch back to the develop branch if needed
-     */
-    console.log(`on-release: hotfix: Execute merge workflow`);
-    await tryMerge(currentBranch, Config.developBranch);
-
-    const { data: latestRelease } = await octokit.rest.repos
-      .getLatestRelease(Config.repo)
-      .catch(() => ({ data: null }));
-
-    const { data: releaseNotes } =
-      await octokit.rest.repos.generateReleaseNotes({
-        ...Config.repo,
-        tag_name: version,
-        target_commitish: Config.developBranch,
-        previous_tag_name: latestRelease?.tag_name,
-      });
-
-    console.log(`on-release: release(${version}): Creating GitHub release`);
-    await octokit.rest.repos.createRelease({
-      ...Config.repo,
-      tag_name: version,
-      target_commitish: Config.prodBranch,
-      name: releaseNotes.name,
-      body: releaseNotes.body,
-    });
-
-    console.log(`on-release: success`);
-
-    return;
   }
-};
 
-exports.executePostRelease = async function executePostRelease() {
   /**
-   * @type {import("@octokit/plugin-rest-endpoint-methods").RestEndpointMethodTypes["repos"]["createRelease"]["response"]["data"]}
+   * Merging the release or hotfix branch back to the develop branch if needed
    */
-  const release = github.context.payload.release;
+  console.log(
+    `on-release: ${releaseCandidateType}(${version}): Execute merge workflow`
+  );
+  await tryMerge(currentBranch, Config.developBranch);
+
+  console.log(`on-release: release(${version}): Generating release notes`);
+  const { data: latestRelease } = await octokit.rest.repos
+    .getLatestRelease(Config.repo)
+    .catch(() => ({ data: null }));
+
+  const { data: releaseNotes } = await octokit.rest.repos.generateReleaseNotes({
+    ...Config.repo,
+    tag_name: version,
+    target_commitish: Config.prodBranch,
+    previous_tag_name: latestRelease?.tag_name,
+  });
+
+  let releaseNotesBody = releaseNotes.body;
+
+  const pullRequestBody = pullRequest.body;
+  if (pullRequestBody) {
+    // try to extract release summary
+    const lines = pullRequestBody.split(`\n`);
+    const sepIndex = lines.findIndex((line) => line.startsWith("---"));
+    if (sepIndex !== -1) {
+      const summary = lines.slice(sepIndex + 1).join(`\n`);
+      releaseNotesBody = `${releaseNotesBody}
+
+## Release summary
+${summary}`;
+    }
+  }
+
+  const { data: release } = await octokit.rest.repos.createRelease({
+    ...Config.repo,
+    tag_name: version,
+    target_commitish: Config.prodBranch,
+    name: releaseNotes.name || version,
+    body: releaseNotesBody,
+  });
+
+  await core.summary
+    .addHeading(`Release successful ${version}`)
+    .addLink("View the release!", release.html_url);
+
+  console.log(`on-release: success`);
+
   console.log(`post-release: process release ${release.name}`);
   const slackInput = core.getInput("slack");
   if (slackInput) {
@@ -19347,6 +19346,7 @@ exports.executePostRelease = async function executePostRelease() {
 // @ts-check
 const core = __nccwpck_require__(2186);
 const assert = __nccwpck_require__(9491);
+const { Constants } = __nccwpck_require__(4438);
 const { Config, octokit } = __nccwpck_require__(9297);
 
 exports.createReleasePR = async function createReleasePR() {
@@ -19391,16 +19391,28 @@ exports.createReleasePR = async function createReleasePR() {
 
   const { data: pullRequest } = await octokit.rest.pulls.create({
     ...Config.repo,
-    title: `Release ${releaseNotes.name}`,
-    body: releaseNotes.body,
+    title: `Release ${releaseNotes.name || version}`,
+    body: `${releaseNotes.body}
+    
+Release summary
+---`,
     head: releaseBranch,
     base: Config.prodBranch,
     maintainer_can_modify: false,
   });
 
+  await octokit.rest.issues.addLabels({
+    ...Config.repo,
+    issue_number: pullRequest.number,
+    labels: [Constants.Release],
+  });
+
   console.log(
     `create_release: Pull request has been created at ${pullRequest.url}`
   );
+  await core.summary
+    .addHeading(`Created release branch and PR ${version}`)
+    .addLink("View release PR!", pullRequest.html_url);
 };
 
 
@@ -19432,6 +19444,7 @@ exports.Config = {
 /***/ 1608:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
+const core = __nccwpck_require__(2186);
 const { Constants } = __nccwpck_require__(4438);
 const { Config, octokit } = __nccwpck_require__(9297);
 
@@ -19458,21 +19471,32 @@ exports.tryMerge = async function tryMerge(headBranch, baseBranch) {
         base: baseBranch,
         head: headBranch,
       });
+      core.summary
+        .addHeading("Back-merge", 2)
+        .addRaw(
+          `The ${headBranch} branch was successfully merge into ${baseBranch} branch.`
+        );
     } catch (err) {
       // could not automatically merge
       // try creating a PR
-      await octokit.rest.pulls
-        .create({
+      try {
+        const { data: pullRequest } = await octokit.rest.pulls.create({
           ...Config.repo,
           base: baseBranch,
           head: headBranch,
           title: `Merge ${headBranch} branch into ${baseBranch}`,
           body: `In Gitflow, \`release\` and \`hotfix\` branches get merged back into \`develop\` branch.
 See [Gitflow Workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow) for more details.`,
-        })
-        .catch(() => {
-          /** noop */
         });
+        core.summary
+          .addHeading("Back-merge", 2)
+          .addRaw("A PR was created for back-merge, please review ")
+          .addLink("here", pullRequest.html_url);
+      } catch (error) {
+        core.error(
+          `Couldn't perform back-merge! Merge error: ${err}, PR error ${error}`
+        );
+      }
     }
   } else {
     console.log(
@@ -19490,10 +19514,10 @@ exports.isReleaseCandidate = function isReleaseCandidate(
   shouldLog = false
 ) {
   if (pullRequest.base.ref !== Config.prodBranch) {
-    if (shouldLog)
-      console.log(
-        `on-release: ${pullRequest.number} does not merge to main_branch. Exiting...`
-      );
+    const message = `on-release: ${pullRequest.number} does not merge to main_branch. Exiting...`;
+    if (shouldLog) console.log(message);
+
+    core.summary.addHeading("Not release candidate", 2).addRaw(message);
     return false;
   }
 
@@ -19504,10 +19528,10 @@ exports.isReleaseCandidate = function isReleaseCandidate(
   if (pullRequest.labels.some((label) => label.name === Constants.Hotfix))
     return "hotfix";
 
-  if (shouldLog)
-    console.log(
-      `on-release: pull request does not have either ${Constants.Release} or ${Constants.Hotfix} labels. Exiting...`
-    );
+  const message = `on-release: pull request does not have either ${Constants.Release} or ${Constants.Hotfix} labels. Exiting...`;
+  if (shouldLog) console.log(message);
+
+  core.summary.addHeading("Not release candidate", 2).addRaw(message);
   return false;
 };
 
@@ -19730,7 +19754,7 @@ const {
   pullRequestAutoLabel,
   pullRequestLabelExplainer,
 } = __nccwpck_require__(9421);
-const { executePostRelease, executeOnRelease } = __nccwpck_require__(2706);
+const { executeOnRelease } = __nccwpck_require__(2706);
 const { createReleasePR } = __nccwpck_require__(2026);
 
 const start = async () => {
@@ -19745,20 +19769,18 @@ const start = async () => {
       await pullRequestLabelExplainer();
       return;
     }
-  } else if (github.context.eventName === "release") {
-    await executePostRelease();
-    return;
   } else if (github.context.eventName === "workflow_dispatch") {
     await createReleasePR();
     return;
   }
-  console.log(
-    `gitflow-workflow-action: does not match any eventName. Skipping...`
-  );
+  const message = `gitflow-workflow-action: does not match any eventName. Skipping...`;
+  console.log(message);
+  core.summary.addHeading(message, 3);
 };
 
 start()
-  .then(() => {
+  .then(async () => {
+    await core.summary.write();
     process.exitCode = 0;
   })
   .catch((err) => {

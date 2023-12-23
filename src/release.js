@@ -1,6 +1,7 @@
 // @ts-check
 const core = require("@actions/core");
 const assert = require("assert");
+const { Constants } = require("./constants.js");
 const { Config, octokit } = require("./shared.js");
 
 exports.createReleasePR = async function createReleasePR() {
@@ -45,14 +46,26 @@ exports.createReleasePR = async function createReleasePR() {
 
   const { data: pullRequest } = await octokit.rest.pulls.create({
     ...Config.repo,
-    title: `Release ${releaseNotes.name}`,
-    body: releaseNotes.body,
+    title: `Release ${releaseNotes.name || version}`,
+    body: `${releaseNotes.body}
+    
+Release summary
+---`,
     head: releaseBranch,
     base: Config.prodBranch,
     maintainer_can_modify: false,
   });
 
+  await octokit.rest.issues.addLabels({
+    ...Config.repo,
+    issue_number: pullRequest.number,
+    labels: [Constants.Release],
+  });
+
   console.log(
     `create_release: Pull request has been created at ${pullRequest.url}`
   );
+  await core.summary
+    .addHeading(`Created release branch and PR ${version}`)
+    .addLink("View release PR!", pullRequest.html_url);
 };
