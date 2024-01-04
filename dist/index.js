@@ -55975,6 +55975,10 @@ const Config = {
     owner: github.context.repo.owner,
     repo: github.context.repo.repo,
   },
+  version: core.getInput("version") || process.env.VERSION || "",
+  isDryRun: (core.getInput("dry_run") || process.env.DRY_RUN) == "true",
+  releaseSummary:
+    core.getInput("release_summary") || process.env.RELEASE_SUMMARY || "",
 };
 
 ;// CONCATENATED MODULE: ./src/constants.js
@@ -55985,7 +55989,9 @@ const Constants = {
   Hotfix: "hotfix",
 };
 
-const PR_EXPLAIN_MESSAGE = `Merging this pull request will trigger Gitflow release actions. A release would be created and ${Config.mergeBackFromProd ? `${Config.prodBranch}` : "this branch"} would be merged back to ${Config.developBranch} if needed.
+const PR_EXPLAIN_MESSAGE = `Merging this pull request will trigger Gitflow release actions. A release would be created and ${
+  Config.mergeBackFromProd ? `${Config.prodBranch}` : "this branch"
+} would be merged back to ${Config.developBranch} if needed.
 See [Gitflow Workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow) for more details.`;
 
 ;// CONCATENATED MODULE: ./src/utils.js
@@ -56337,33 +56343,11 @@ async function executeOnRelease() {
 
 
 
-
-
 /**
  * @returns {Promise<import("./types.js").Result>}
  */
 async function createReleasePR() {
-  const version = core.getInput("version") || process.env.VERSION || "";
-
-  console.log(`create_release: Checking release version`);
-  external_assert_default()(version, "input.version is not defined");
-
-  console.log(`create_release: Generating release notes`);
-
-  // developBranch and mainBranch are almost identical
-  // so we can use developBranch for ahead-of-time release note
-  const { data: latestRelease } = await octokit.rest.repos.getLatestRelease(Config.repo)
-    .catch(() => ({ data: null }));
-
-  const { data: releaseNotes } = await octokit.rest.repos.generateReleaseNotes({
-    ...Config.repo,
-    tag_name: version,
-    target_commitish: Config.developBranch,
-    previous_tag_name: latestRelease?.tag_name,
-  });
-
-  console.log(`create_release: Creating release branch`);
-  const releaseBranch = `release/${version}`;
+  const isDryRun = Config.isDryRun;
 
   const developBranchSha = (
     await octokit.rest.repos.getBranch({
@@ -56372,34 +56356,75 @@ async function createReleasePR() {
     })
   ).data.commit.sha;
 
-  // create release branch from latest sha of develop branch
-  await octokit.rest.git.createRef({
+  console.log(
+    `create_release: Generating release notes for ${developBranchSha}`,
+  );
+
+  const version = Config.version || developBranchSha;
+
+  // developBranch and mainBranch are almost identical
+  // so we can use developBranch for ahead-of-time release note
+  const { data: latestRelease } = await octokit.rest.repos.getLatestRelease(Config.repo)
+    .catch(() => ({ data: null }));
+
+  const latest_release_tag_name = latestRelease?.tag_name;
+
+  const { data: releaseNotes } = await octokit.rest.repos.generateReleaseNotes({
     ...Config.repo,
-    ref: `refs/heads/${releaseBranch}`,
-    sha: developBranchSha,
+    tag_name: version,
+    target_commitish: Config.developBranch,
+    previous_tag_name: latest_release_tag_name,
   });
 
-  console.log(`create_release: Creating Pull Request`);
-
-  const { data: pullRequest } = await octokit.rest.pulls.create({
-    ...Config.repo,
-    title: `Release ${releaseNotes.name || version}`,
-    body: `${releaseNotes.body}
+  const releasePrBody = `${releaseNotes.body}
     
 ## Release summary
-`,
-    head: releaseBranch,
-    base: Config.prodBranch,
-    maintainer_can_modify: false,
-  });
 
-  await octokit.rest.issues.addLabels({
-    ...Config.repo,
-    issue_number: pullRequest.number,
-    labels: [Constants.Release],
-  });
+${Config.releaseSummary}
+  `;
 
-  await createExplainComment(pullRequest.number);
+  const releaseBranch = `release/${version}`;
+  let pull_number;
+
+  if (!isDryRun) {
+    console.log(`create_release: Creating release branch`);
+
+    // create release branch from latest sha of develop branch
+    await octokit.rest.git.createRef({
+      ...Config.repo,
+      ref: `refs/heads/${releaseBranch}`,
+      sha: developBranchSha,
+    });
+
+    console.log(`create_release: Creating Pull Request`);
+
+    const { data: pullRequest } = await octokit.rest.pulls.create({
+      ...Config.repo,
+      title: `Release ${releaseNotes.name || version}`,
+      body: releasePrBody,
+      head: releaseBranch,
+      base: Config.prodBranch,
+      maintainer_can_modify: false,
+    });
+
+    pull_number = pullRequest.number;
+
+    await octokit.rest.issues.addLabels({
+      ...Config.repo,
+      issue_number: pullRequest.number,
+      labels: [Constants.Release],
+    });
+
+    await createExplainComment(pullRequest.number);
+
+    console.log(
+      `create_release: Pull request has been created at ${pullRequest.html_url}`,
+    );
+  } else {
+    console.log(
+      `create_release: Dry run: would have created release branch ${releaseBranch} and PR with body:\n${releasePrBody}`,
+    );
+  }
 
   // Parse the PR body for PR numbers
   let mergedPrNumbers = (releaseNotes.body.match(/pull\/\d+/g) || []).map(
@@ -56408,16 +56433,13 @@ async function createReleasePR() {
   // remove duplicates due to the "New contributors" section
   mergedPrNumbers = Array.from(new Set(mergedPrNumbers)).sort();
 
-  console.log(
-    `create_release: Pull request has been created at ${pullRequest.html_url}`,
-  );
-
   return {
     type: "release",
-    pull_number: pullRequest.number,
+    pull_number: pull_number,
     pull_numbers_in_release: mergedPrNumbers.join(","),
     version,
     release_branch: releaseBranch,
+    latest_release_tag_name,
   };
 }
 
@@ -56428,10 +56450,13 @@ async function createReleasePR() {
 
 
 
+
 const start = async () => {
   /**
    * @type {Result | undefined}
    */
+  console.log(`gitflow-workflow-action: running with config`, Config);
+
   let res;
   if (github.context.eventName === "pull_request") {
     if (github.context.payload.action === "closed") {
