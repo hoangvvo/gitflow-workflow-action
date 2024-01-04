@@ -9,7 +9,7 @@ import { createExplainComment } from "./utils.js";
  * @returns {Promise<import("./types.js").Result>}
  */
 export async function createReleasePR() {
-  const version = core.getInput("version");
+  const version = core.getInput("version") || process.env.VERSION || "";
 
   console.log(`create_release: Checking release version`);
   assert(version, "input.version is not defined");
@@ -69,9 +69,11 @@ export async function createReleasePR() {
   await createExplainComment(pullRequest.number);
 
   // Parse the PR body for PR numbers
-  const mergedPrNumbers = (releaseNotes.body.match(/pull\/\d+/g) || []).map(
+  let mergedPrNumbers = (releaseNotes.body.match(/pull\/\d+/g) || []).map(
     (prNumber) => Number(prNumber.replace("pull/", "")),
   );
+  // remove duplicates due to the "New contributors" section
+  mergedPrNumbers = Array.from(new Set(mergedPrNumbers)).sort();
 
   console.log(
     `create_release: Pull request has been created at ${pullRequest.html_url}`,

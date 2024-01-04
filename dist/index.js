@@ -55965,9 +55965,12 @@ if (!githubToken) throw new Error(`process.env.GITHUB_TOKEN is not defined`);
 const octokit = github.getOctokit(githubToken);
 
 const Config = {
-  developBranch: core.getInput("develop_branch"),
-  prodBranch: core.getInput("main_branch"),
-  mergeBackFromProd: core.getInput("merge_back_from_main") == "true",
+  developBranch:
+    core.getInput("develop_branch") || process.env.DEVELOP_BRANCH || "",
+  prodBranch: core.getInput("main_branch") || process.env.MAIN_BRANCH || "",
+  mergeBackFromProd:
+    (core.getInput("merge_back_from_main") ||
+      process.env.MERGE_BACK_FROM_MAIN) == "true",
   repo: {
     owner: github.context.repo.owner,
     repo: github.context.repo.repo,
@@ -56340,7 +56343,7 @@ async function executeOnRelease() {
  * @returns {Promise<import("./types.js").Result>}
  */
 async function createReleasePR() {
-  const version = core.getInput("version");
+  const version = core.getInput("version") || process.env.VERSION || "";
 
   console.log(`create_release: Checking release version`);
   external_assert_default()(version, "input.version is not defined");
@@ -56399,9 +56402,11 @@ async function createReleasePR() {
   await createExplainComment(pullRequest.number);
 
   // Parse the PR body for PR numbers
-  const mergedPrNumbers = (releaseNotes.body.match(/pull\/\d+/g) || []).map(
+  let mergedPrNumbers = (releaseNotes.body.match(/pull\/\d+/g) || []).map(
     (prNumber) => Number(prNumber.replace("pull/", "")),
   );
+  // remove duplicates due to the "New contributors" section
+  mergedPrNumbers = Array.from(new Set(mergedPrNumbers)).sort();
 
   console.log(
     `create_release: Pull request has been created at ${pullRequest.html_url}`,

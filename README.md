@@ -48,6 +48,8 @@ jobs:
 | `merge_back_from_main` | If `"true"`, there will be a merge back from `main` instead of the release branch to `develop` after a release is created | `"false"` |
 | `version`              | Version to release                                                                                                        |           |
 
+Alternatively, the following environment variables can be used: `DEVELOP_BRANCH`, `MAIN_BRANCH`, `MERGE_BACK_FROM_MAIN`, `VERSION`.
+
 ## Outputs
 
 Depending on the workflow types, some outputs might be present:
