@@ -183,7 +183,8 @@ jobs:
               return `${pr.data.title}\n${match}`;
             })).then((prs) => prs.filter(Boolean));
             const releaseSummary = mergedPrs.join('\n\n');
-            return { releaseSummary };
+            return resultSummary;
+          result-encoding: string
 
       - id: release_workflow
         name: gitflow-workflow-action release workflows
@@ -193,7 +194,7 @@ jobs:
           main_branch: "main"
           merge_back_from_main: false
           version: ${{ inputs.version }}
-          release_summary: ${{ steps.generate_pr_summary.outputs.releaseSummary }}
+          release_summary: ${{ steps.generate_pr_summary.outputs.result }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
