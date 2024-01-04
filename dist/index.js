@@ -55967,7 +55967,7 @@ const octokit = github.getOctokit(githubToken);
 const Config = {
   developBranch: core.getInput("develop_branch"),
   prodBranch: core.getInput("main_branch"),
-  mergeBackFromProd: !!core.getInput("merge_back_from_main"),
+  mergeBackFromProd: core.getInput("merge_back_from_main") == "true",
   repo: {
     owner: github.context.repo.owner,
     repo: github.context.repo.repo,
@@ -56322,7 +56322,6 @@ async function executeOnRelease() {
   return {
     type: releaseCandidateType,
     version,
-    pull_number: pullRequestNumber,
     release_url: release.html_url,
   };
 }
@@ -56399,6 +56398,11 @@ async function createReleasePR() {
 
   await createExplainComment(pullRequest.number);
 
+  // Parse the PR body for PR numbers
+  const mergedPrNumbers = (releaseNotes.body.match(/pull\/\d+/g) || []).map(
+    (prNumber) => Number(prNumber.replace("pull/", "")),
+  );
+
   console.log(
     `create_release: Pull request has been created at ${pullRequest.html_url}`,
   );
@@ -56406,6 +56410,7 @@ async function createReleasePR() {
   return {
     type: "release",
     pull_number: pullRequest.number,
+    pull_numbers_in_release: mergedPrNumbers.join(","),
     version,
     release_branch: releaseBranch,
   };
@@ -56425,13 +56430,25 @@ const start = async () => {
   let res;
   if (github.context.eventName === "pull_request") {
     if (github.context.payload.action === "closed") {
+      console.log(
+        `gitflow-workflow-action: Pull request closed. Running executeOnRelease...`,
+      );
       res = await executeOnRelease();
     } else if (github.context.payload.action === "opened") {
+      console.log(
+        `gitflow-workflow-action: Pull request opened. Running pullRequestAutoLabel...`,
+      );
       await pullRequestAutoLabel();
     } else if (github.context.payload.action === "labeled") {
+      console.log(
+        `gitflow-workflow-action: Pull request labeled. Running pullRequestLabelExplainer...`,
+      );
       await pullRequestLabelExplainer();
     }
   } else if (github.context.eventName === "workflow_dispatch") {
+    console.log(
+      `gitflow-workflow-action: Workflow dispatched. Running createReleasePR...`,
+    );
     res = await createReleasePR();
   } else {
     console.log(
@@ -56439,6 +56456,9 @@ const start = async () => {
     );
   }
   if (res) {
+    console.log(
+      `gitflow-workflow-action: Setting output: ${JSON.stringify(res)}`,
+    );
     for (const key of Object.keys(res)) {
       core.setOutput(key, res[key]);
     }
