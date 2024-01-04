@@ -19,6 +19,14 @@ inputs:
     description: Merge back to develop from main instead of release branch
     required: false
     default: "false"
+  dry_run:
+    description: Dry run, don't create PR or release
+    required: false
+    default: "false"
+  release_summary:
+    description: Specify the release summary to be put in the last section of the release
+    required: false
+    default: ""
 
 runs:
   using: "node16"

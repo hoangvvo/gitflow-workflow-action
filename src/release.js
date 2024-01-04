@@ -31,7 +31,9 @@ export async function createReleasePR() {
 
   const releasePrBody = `${releaseNotes.body}
     
-  ## Release summary
+## Release summary
+
+${Config.releaseSummary}
   `;
 
   const releaseBranch = `release/${version}`;

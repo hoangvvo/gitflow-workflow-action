@@ -48,8 +48,9 @@ jobs:
 | `merge_back_from_main` | If `"true"`, there will be a merge back from `main` instead of the release branch to `develop` after a release is created                                  | `"false"` |
 | `version`              | Version to release                                                                                                                                         |           |
 | `dry_run`              | If `"true"`, the action will not create any PRs or releases. It will only print out the steps it would take and some outputs like pull_numbers_in_release. | `"false"` |
+| `release_summary`      | Specify the release summary to be put in the last section of the release PR                                                                                | `""`      |
 
-Alternatively, the following environment variables can be used: `DEVELOP_BRANCH`, `MAIN_BRANCH`, `MERGE_BACK_FROM_MAIN`, `VERSION`.
+Alternatively, the following environment variables can be used: `DEVELOP_BRANCH`, `MAIN_BRANCH`, `MERGE_BACK_FROM_MAIN`, `VERSION`, `DRY_RUN`, `RELEASE_SUMMARY`.
 
 ## Outputs
 
