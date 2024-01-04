@@ -17,4 +17,6 @@ export const Config = {
     owner: github.context.repo.owner,
     repo: github.context.repo.repo,
   },
+  version: core.getInput("version") || process.env.VERSION || "",
+  isDryRun: (core.getInput("dry_run") || process.env.DRY_RUN) == "true",
 };

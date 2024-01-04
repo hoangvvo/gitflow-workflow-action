@@ -1,5 +1,4 @@
 // @ts-check
-import * as core from "@actions/core";
 import assert from "assert";
 import { Constants } from "./constants.js";
 import { Config, octokit } from "./shared.js";
@@ -9,7 +8,8 @@ import { createExplainComment } from "./utils.js";
  * @returns {Promise<import("./types.js").Result>}
  */
 export async function createReleasePR() {
-  const version = core.getInput("version") || process.env.VERSION || "";
+  const version = Config.version;
+  const isDryRun = Config.isDryRun;
 
   console.log(`create_release: Checking release version`);
   assert(version, "input.version is not defined");
@@ -29,44 +29,60 @@ export async function createReleasePR() {
     previous_tag_name: latestRelease?.tag_name,
   });
 
-  console.log(`create_release: Creating release branch`);
-  const releaseBranch = `release/${version}`;
-
-  const developBranchSha = (
-    await octokit.rest.repos.getBranch({
-      ...Config.repo,
-      branch: Config.developBranch,
-    })
-  ).data.commit.sha;
-
-  // create release branch from latest sha of develop branch
-  await octokit.rest.git.createRef({
-    ...Config.repo,
-    ref: `refs/heads/${releaseBranch}`,
-    sha: developBranchSha,
-  });
-
-  console.log(`create_release: Creating Pull Request`);
-
-  const { data: pullRequest } = await octokit.rest.pulls.create({
-    ...Config.repo,
-    title: `Release ${releaseNotes.name || version}`,
-    body: `${releaseNotes.body}
+  const releasePrBody = `${releaseNotes.body}
     
-## Release summary
-`,
-    head: releaseBranch,
-    base: Config.prodBranch,
-    maintainer_can_modify: false,
-  });
+  ## Release summary
+  `;
 
-  await octokit.rest.issues.addLabels({
-    ...Config.repo,
-    issue_number: pullRequest.number,
-    labels: [Constants.Release],
-  });
+  const releaseBranch = `release/${version}`;
+  let pull_number;
 
-  await createExplainComment(pullRequest.number);
+  if (!isDryRun) {
+    console.log(`create_release: Creating release branch`);
+
+    const developBranchSha = (
+      await octokit.rest.repos.getBranch({
+        ...Config.repo,
+        branch: Config.developBranch,
+      })
+    ).data.commit.sha;
+
+    // create release branch from latest sha of develop branch
+    await octokit.rest.git.createRef({
+      ...Config.repo,
+      ref: `refs/heads/${releaseBranch}`,
+      sha: developBranchSha,
+    });
+
+    console.log(`create_release: Creating Pull Request`);
+
+    const { data: pullRequest } = await octokit.rest.pulls.create({
+      ...Config.repo,
+      title: `Release ${releaseNotes.name || version}`,
+      body: releasePrBody,
+      head: releaseBranch,
+      base: Config.prodBranch,
+      maintainer_can_modify: false,
+    });
+
+    pull_number = pullRequest.number;
+
+    await octokit.rest.issues.addLabels({
+      ...Config.repo,
+      issue_number: pullRequest.number,
+      labels: [Constants.Release],
+    });
+
+    await createExplainComment(pullRequest.number);
+
+    console.log(
+      `create_release: Pull request has been created at ${pullRequest.html_url}`,
+    );
+  } else {
+    console.log(
+      `create_release: Dry run: would have created release branch ${releaseBranch} and PR with body:\n${releasePrBody}`,
+    );
+  }
 
   // Parse the PR body for PR numbers
   let mergedPrNumbers = (releaseNotes.body.match(/pull\/\d+/g) || []).map(
@@ -75,13 +91,9 @@ export async function createReleasePR() {
   // remove duplicates due to the "New contributors" section
   mergedPrNumbers = Array.from(new Set(mergedPrNumbers)).sort();
 
-  console.log(
-    `create_release: Pull request has been created at ${pullRequest.html_url}`,
-  );
-
   return {
     type: "release",
-    pull_number: pullRequest.number,
+    pull_number: pull_number,
     pull_numbers_in_release: mergedPrNumbers.join(","),
     version,
     release_branch: releaseBranch,

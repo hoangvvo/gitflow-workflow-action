@@ -41,12 +41,13 @@ jobs:
 
 ## Inputs
 
-| Name                   | Description                                                                                                               | Default   |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------- | --------- |
-| `develop_branch`       | Name of the develop branch                                                                                                | `develop` |
-| `main_branch`          | Name of the main branch                                                                                                   | `main`    |
-| `merge_back_from_main` | If `"true"`, there will be a merge back from `main` instead of the release branch to `develop` after a release is created | `"false"` |
-| `version`              | Version to release                                                                                                        |           |
+| Name                   | Description                                                                                                                                                | Default   |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| `develop_branch`       | Name of the develop branch                                                                                                                                 | `develop` |
+| `main_branch`          | Name of the main branch                                                                                                                                    | `main`    |
+| `merge_back_from_main` | If `"true"`, there will be a merge back from `main` instead of the release branch to `develop` after a release is created                                  | `"false"` |
+| `version`              | Version to release                                                                                                                                         |           |
+| `dry_run`              | If `"true"`, the action will not create any PRs or releases. It will only print out the steps it would take and some outputs like pull_numbers_in_release. | `"false"` |
 
 Alternatively, the following environment variables can be used: `DEVELOP_BRANCH`, `MAIN_BRANCH`, `MERGE_BACK_FROM_MAIN`, `VERSION`.
 
