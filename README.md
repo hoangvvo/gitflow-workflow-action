@@ -64,6 +64,7 @@ Depending on the workflow types, some outputs might be present:
 | `pull_numbers_in_release` | Comma separated pull request numbers as shown in the What's changed section of the release. (only for `workflow_dispatch`) |
 | `release_branch`          | Name of the release branch. (only after merging release PR)                                                                |
 | `release_url`             | URL to the release page. (only after merging release PR)                                                                   |
+| `latest_release_tag_name` | Name of the latest release tag (only for `workflow_dispatch`).                                                             |
 
 ## Workflows
 
@@ -116,7 +117,7 @@ jobs:
 
 ## Example: Prefill release summary
 
-Using the `pull_number` output, you can update the PR body with the release summary depending on your PR template.
+Using the `pull_numbers_in_release` output and dry run mode, you can prefill the PR body with the release summary depending on your PR template.
 
 Let's assume the PR template is:
 
@@ -140,10 +141,6 @@ xxx
 ## Screenshots (if appropriate)
 
 xxx
-
-## Any Security implications
-
-xxx
 ```
 
 ```yaml
@@ -151,24 +148,22 @@ jobs:
   release_workflow:
     runs-on: ubuntu-latest
     steps:
-      - id: release_workflow
+      - id: release_workflow_dry_run
         name: gitflow-workflow-action release workflows
         uses: hoangvvo/gitflow-workflow-action@<TAG>
-      - name: prefill release summary
-        if: ${{ steps.release_workflow.outputs.type == 'release' and steps.release_workflow.outputs.pull_number and steps.release_workflow.outputs.pull_numbers_in_release }}
+        with:
+          develop_branch: "develop"
+          main_branch: "main"
+          dry_run: true
+
+      - id: generate_pr_summary
+        name: generate pr summary
+        if: ${{ steps.release_workflow_dry_run.outputs.type == 'release' and steps.release_workflow_dry_run.outputs.pull_numbers_in_release }}
         uses: actions/github-script@v7
         with:
-          script: |
-            const pull_number = {{ steps.release_workflow.outputs.pull_number }};
-            const pr = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number,
-            });
-
-            const mergedPrNumbers = "${{ steps.release_workflow.outputs.pull_numbers_in_release }}".split(',').map(Number);
-            const body = context.payload.pull_request.body;
-
+          scripts: |
+            const pull_numbers_in_release = "${{ steps.release_workflow_dry_run.outputs.pull_numbers_in_release }}";
+            const mergedPrNumbers = Array.from(new Set(pull_numbers_in_release.split(',').map(Number)));
             // Get the PRs and parse the release summary
             const mergedPrs = await Promise.all(mergedPrNumbers.map(async (prNumber) => {
               const pr = await github.rest.pulls.get({
@@ -176,23 +171,31 @@ jobs:
                 repo: context.repo.repo,
                 pull_number: prNumber
               });
-              const regex = /## What does this PR do\?\n\n(.*?)\n\n##/s;
               if (!pr.data.body) {
                 return;
               }
               const regex = /\#\# What does this PR do\?([\s\S]*?)\n\#\#/gm;
-              const match = regex.exec(pr.data.body)
-              return match?.[1]?.trim();
+              let match = regex.exec(pr.data.body)?.[1]?.trim();
+              // try to remove empty lines
+              match = match?.split('\n').map(s => s.trim()).filter(Boolean).map(
+                s => s.startsWith('-') || s.startsWith('*') ? s : `* ${s}`
+              ).join('\n');
+              return `${pr.data.title}\n${match}`;
             })).then((prs) => prs.filter(Boolean));
-            const releaseSummary = mergedPrs.join('\n');
+            const releaseSummary = mergedPrs.join('\n\n');
+            return { releaseSummary };
 
-            // Update the PR body
-            await github.rest.pulls.update({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number,
-              body: body.replace("## Release summary", `## Release summary\n\n${releaseSummary}`)
-            });
+      - id: release_workflow
+        name: gitflow-workflow-action release workflows
+        uses: hoangvvo/gitflow-workflow-action@<TAG>
+        with:
+          develop_branch: "develop"
+          main_branch: "main"
+          merge_back_from_main: false
+          version: ${{ inputs.version }}
+          release_summary: ${{ steps.generate_pr_summary.outputs.releaseSummary }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## License

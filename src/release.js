@@ -1,5 +1,4 @@
 // @ts-check
-import assert from "assert";
 import { Constants } from "./constants.js";
 import { Config, octokit } from "./shared.js";
 import { createExplainComment } from "./utils.js";
@@ -8,13 +7,20 @@ import { createExplainComment } from "./utils.js";
  * @returns {Promise<import("./types.js").Result>}
  */
 export async function createReleasePR() {
-  const version = Config.version;
   const isDryRun = Config.isDryRun;
 
-  console.log(`create_release: Checking release version`);
-  assert(version, "input.version is not defined");
+  const developBranchSha = (
+    await octokit.rest.repos.getBranch({
+      ...Config.repo,
+      branch: Config.developBranch,
+    })
+  ).data.commit.sha;
 
-  console.log(`create_release: Generating release notes`);
+  console.log(
+    `create_release: Generating release notes for ${developBranchSha}`,
+  );
+
+  const version = Config.version || developBranchSha;
 
   // developBranch and mainBranch are almost identical
   // so we can use developBranch for ahead-of-time release note
@@ -22,11 +28,13 @@ export async function createReleasePR() {
     .getLatestRelease(Config.repo)
     .catch(() => ({ data: null }));
 
+  const latest_release_tag_name = latestRelease?.tag_name;
+
   const { data: releaseNotes } = await octokit.rest.repos.generateReleaseNotes({
     ...Config.repo,
     tag_name: version,
     target_commitish: Config.developBranch,
-    previous_tag_name: latestRelease?.tag_name,
+    previous_tag_name: latest_release_tag_name,
   });
 
   const releasePrBody = `${releaseNotes.body}
@@ -41,13 +49,6 @@ ${Config.releaseSummary}
 
   if (!isDryRun) {
     console.log(`create_release: Creating release branch`);
-
-    const developBranchSha = (
-      await octokit.rest.repos.getBranch({
-        ...Config.repo,
-        branch: Config.developBranch,
-      })
-    ).data.commit.sha;
 
     // create release branch from latest sha of develop branch
     await octokit.rest.git.createRef({
@@ -99,5 +100,6 @@ ${Config.releaseSummary}
     pull_numbers_in_release: mergedPrNumbers.join(","),
     version,
     release_branch: releaseBranch,
+    latest_release_tag_name,
   };
 }
