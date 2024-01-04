@@ -69,7 +69,9 @@ export async function createReleasePR() {
   await createExplainComment(pullRequest.number);
 
   // Parse the PR body for PR numbers
-  const mergedPrNumbers = (releaseNotes.body.match(/pull\/\d+/g) || []).map((prNumber) => Number(prNumber.replace('pull/', '')));
+  const mergedPrNumbers = (releaseNotes.body.match(/pull\/\d+/g) || []).map(
+    (prNumber) => Number(prNumber.replace("pull/", "")),
+  );
 
   console.log(
     `create_release: Pull request has been created at ${pullRequest.html_url}`,
