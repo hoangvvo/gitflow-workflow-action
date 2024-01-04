@@ -3,11 +3,14 @@ import * as github from "@actions/github";
 import { pullRequestAutoLabel, pullRequestLabelExplainer } from "./labeler.js";
 import { executeOnRelease } from "./post-release.js";
 import { createReleasePR } from "./release.js";
+import { Config } from "./shared.js";
 
 const start = async () => {
   /**
    * @type {Result | undefined}
    */
+  console.log(`gitflow-workflow-action: running with config`, Config);
+
   let res;
   if (github.context.eventName === "pull_request") {
     if (github.context.payload.action === "closed") {
