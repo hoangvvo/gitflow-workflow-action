@@ -41,14 +41,14 @@ jobs:
 
 ## Inputs
 
-| Name                   | Description                                                                                                                                                | Default   |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| `develop_branch`       | Name of the develop branch                                                                                                                                 | `develop` |
-| `main_branch`          | Name of the main branch                                                                                                                                    | `main`    |
-| `merge_back_from_main` | If `"true"`, there will be a merge back from `main` instead of the release branch to `develop` after a release is created                                  | `"false"` |
-| `version`              | Version to release                                                                                                                                         |           |
-| `dry_run`              | If `"true"`, the action will not create any PRs or releases. It will only print out the steps it would take and some outputs like pull_numbers_in_release. | `"false"` |
-| `release_summary`      | Specify the release summary to be put in the last section of the release PR                                                                                | `""`      |
+| Name                   | Description                                                                                                                                                                                                                                                                | Default   |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| `develop_branch`       | Name of the develop branch                                                                                                                                                                                                                                                 | `develop` |
+| `main_branch`          | Name of the main branch                                                                                                                                                                                                                                                    | `main`    |
+| `merge_back_from_main` | If `"true"`, there will be a merge back from `main` instead of the release branch to `develop` after a release is created. See [this Stackoverflow discussion](https://stackoverflow.com/questions/46604715/gitflow-merging-release-bugfixes-back-to-develop-from-master). | `"false"` |
+| `version`              | Version to release                                                                                                                                                                                                                                                         |           |
+| `dry_run`              | If `"true"`, the action will not create any PRs or releases. It will only print out the steps it would take and some outputs like pull_numbers_in_release.                                                                                                                 | `"false"` |
+| `release_summary`      | Specify the release summary to be put in the last section of the release PR                                                                                                                                                                                                | `""`      |
 
 Alternatively, the following environment variables can be used: `DEVELOP_BRANCH`, `MAIN_BRANCH`, `MERGE_BACK_FROM_MAIN`, `VERSION`, `DRY_RUN`, `RELEASE_SUMMARY`.
 
@@ -148,8 +148,11 @@ jobs:
   release_workflow:
     runs-on: ubuntu-latest
     steps:
+      # This step is only run for `generate_pr_summary` step
+      # which is only run when the workflow is triggered from the "Run workflow" window
       - id: release_workflow_dry_run
         name: gitflow-workflow-action release workflows
+        if: github.event_name == 'workflow_dispatch'
         uses: hoangvvo/gitflow-workflow-action@<TAG>
         with:
           develop_branch: "develop"
@@ -192,7 +195,6 @@ jobs:
         with:
           develop_branch: "develop"
           main_branch: "main"
-          merge_back_from_main: false
           version: ${{ inputs.version }}
           release_summary: ${{ steps.generate_pr_summary.outputs.result }}
         env:
