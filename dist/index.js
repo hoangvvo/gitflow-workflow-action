@@ -55991,11 +55991,6 @@ const Config = {
 ;// CONCATENATED MODULE: ./src/constants.js
 
 
-const Constants = {
-  Release: "release",
-  Hotfix: "hotfix",
-};
-
 const PR_EXPLAIN_MESSAGE = `Merging this pull request will trigger Gitflow release actions. A release would be created and ${
   Config.mergeBackFromProd ? `${Config.prodBranch}` : "this branch"
 } would be merged back to ${Config.developBranch} if needed.
@@ -56067,16 +56062,17 @@ function isReleaseCandidate(pullRequest, shouldLog = false) {
     return false;
   }
 
-  if (pullRequest.labels.some((label) => label.name === Constants.Release)) {
+  if (pullRequest.head.ref.startsWith(Config.releaseBranchPrefix)) {
     return "release";
   }
 
-  if (pullRequest.labels.some((label) => label.name === Constants.Hotfix))
+  if (pullRequest.head.ref.startsWith(Config.hotfixBranchPrefix)) {
     return "hotfix";
+  }
 
   if (shouldLog)
     console.log(
-      `on-release: pull request does not have either ${Constants.Release} or ${Constants.Hotfix} labels. Exiting...`,
+      `on-release: pull request does not match either release or hotfix branch pattern. Exiting...`,
     );
   return false;
 }
@@ -56242,7 +56238,9 @@ async function executeOnRelease() {
     ).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
   }
 
-  console.log(`on-release: release(${version}): Generating release`);
+  console.log(
+    `on-release: ${releaseCandidateType}(${version}): Generating release`,
+  );
 
   const pullRequestBody = pullRequest.body;
 
@@ -56292,7 +56290,6 @@ async function executeOnRelease() {
 
 ;// CONCATENATED MODULE: ./src/release.js
 // @ts-check
-
 
 
 
@@ -56365,7 +56362,7 @@ ${Config.releaseSummary}
     await octokit.rest.issues.addLabels({
       ...Config.repo,
       issue_number: pullRequest.number,
-      labels: [Constants.Release],
+      labels: ["release"],
     });
 
     await createExplainComment(pullRequest.number);

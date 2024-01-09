@@ -7,9 +7,7 @@ on:
         description: "Version to release"
   pull_request:
     types:
-      - opened
       - closed
-      - labeled
 
 name: Release
 
