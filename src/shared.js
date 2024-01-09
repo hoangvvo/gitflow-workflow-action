@@ -21,4 +21,6 @@ export const Config = {
   isDryRun: (core.getInput("dry_run") || process.env.DRY_RUN) == "true",
   releaseSummary:
     core.getInput("release_summary") || process.env.RELEASE_SUMMARY || "",
+  releaseBranchPrefix: "release/",
+  hotfixBranchPrefix: "hotfix/",
 };
