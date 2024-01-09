@@ -1,5 +1,4 @@
 // @ts-check
-import { Constants } from "./constants.js";
 import { Config, octokit } from "./shared.js";
 import { createExplainComment } from "./utils.js";
 
@@ -44,7 +43,7 @@ export async function createReleasePR() {
 ${Config.releaseSummary}
   `;
 
-  const releaseBranch = `release/${version}`;
+  const releaseBranch = `${Config.releaseBranchPrefix}${version}`;
   let pull_number;
 
   if (!isDryRun) {
@@ -73,7 +72,7 @@ ${Config.releaseSummary}
     await octokit.rest.issues.addLabels({
       ...Config.repo,
       issue_number: pullRequest.number,
-      labels: [Constants.Release],
+      labels: ["release"],
     });
 
     await createExplainComment(pullRequest.number);

@@ -1,6 +1,5 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
-import { pullRequestAutoLabel, pullRequestLabelExplainer } from "./labeler.js";
 import { executeOnRelease } from "./post-release.js";
 import { createReleasePR } from "./release.js";
 import { Config } from "./shared.js";
@@ -12,23 +11,14 @@ const start = async () => {
   console.log(`gitflow-workflow-action: running with config`, Config);
 
   let res;
-  if (github.context.eventName === "pull_request") {
-    if (github.context.payload.action === "closed") {
-      console.log(
-        `gitflow-workflow-action: Pull request closed. Running executeOnRelease...`,
-      );
-      res = await executeOnRelease();
-    } else if (github.context.payload.action === "opened") {
-      console.log(
-        `gitflow-workflow-action: Pull request opened. Running pullRequestAutoLabel...`,
-      );
-      await pullRequestAutoLabel();
-    } else if (github.context.payload.action === "labeled") {
-      console.log(
-        `gitflow-workflow-action: Pull request labeled. Running pullRequestLabelExplainer...`,
-      );
-      await pullRequestLabelExplainer();
-    }
+  if (
+    github.context.eventName === "pull_request" &&
+    github.context.payload.action === "closed"
+  ) {
+    console.log(
+      `gitflow-workflow-action: Pull request closed. Running executeOnRelease...`,
+    );
+    res = await executeOnRelease();
   } else if (github.context.eventName === "workflow_dispatch") {
     console.log(
       `gitflow-workflow-action: Workflow dispatched. Running createReleasePR...`,
@@ -36,7 +26,7 @@ const start = async () => {
     res = await createReleasePR();
   } else {
     console.log(
-      `gitflow-workflow-action: does not match any eventName. Skipping...`,
+      `gitflow-workflow-action: does not match any conditions to run. Skipping...`,
     );
   }
   if (res) {

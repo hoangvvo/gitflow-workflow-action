@@ -53,7 +53,7 @@ async function executeOnRelease() {
     /**
      * Creating a release
      */
-    version = currentBranch.substring("release/".length);
+    version = currentBranch.substring(Config.releaseBranchPrefix.length);
   } else if (releaseCandidateType === "hotfix") {
     /**
      * Creating a hotfix release
@@ -69,7 +69,9 @@ async function executeOnRelease() {
     ).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
   }
 
-  console.log(`on-release: release(${version}): Generating release`);
+  console.log(
+    `on-release: ${releaseCandidateType}(${version}): Generating release`,
+  );
 
   const pullRequestBody = pullRequest.body;
 
