@@ -10,6 +10,13 @@ import { isReleaseCandidate, tryMerge } from "./utils.js";
  * @returns {Promise<import("./types.js").Result>}
  */
 async function executeOnRelease() {
+  if (Config.isDryRun) {
+    console.log(`on-release: dry run. Exiting...`);
+    return {
+      type: "none",
+    };
+  }
+
   if (!github.context.payload.pull_request?.merged) {
     console.log(`on-release: pull request is not merged. Exiting...`);
     return {
@@ -62,7 +69,7 @@ async function executeOnRelease() {
     ).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
   }
 
-  console.log(`on-release: release(${version}): Generating release notes`);
+  console.log(`on-release: release(${version}): Generating release`);
 
   const pullRequestBody = pullRequest.body;
 
