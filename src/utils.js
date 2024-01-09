@@ -1,4 +1,4 @@
-import { Constants, PR_EXPLAIN_MESSAGE } from "./constants.js";
+import { PR_EXPLAIN_MESSAGE } from "./constants.js";
 import { Config, octokit } from "./shared.js";
 
 /**
@@ -64,16 +64,17 @@ export function isReleaseCandidate(pullRequest, shouldLog = false) {
     return false;
   }
 
-  if (pullRequest.labels.some((label) => label.name === Constants.Release)) {
+  if (pullRequest.head.ref.startsWith(Config.releaseBranchPrefix)) {
     return "release";
   }
 
-  if (pullRequest.labels.some((label) => label.name === Constants.Hotfix))
+  if (pullRequest.head.ref.startsWith(Config.hotfixBranchPrefix)) {
     return "hotfix";
+  }
 
   if (shouldLog)
     console.log(
-      `on-release: pull request does not have either ${Constants.Release} or ${Constants.Hotfix} labels. Exiting...`,
+      `on-release: pull request does not match either release or hotfix branch pattern. Exiting...`,
     );
   return false;
 }

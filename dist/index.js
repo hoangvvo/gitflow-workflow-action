@@ -55955,6 +55955,11 @@ var github = __nccwpck_require__(5438);
 // EXTERNAL MODULE: external "assert"
 var external_assert_ = __nccwpck_require__(9491);
 var external_assert_default = /*#__PURE__*/__nccwpck_require__.n(external_assert_);
+// EXTERNAL MODULE: ./node_modules/@slack/web-api/dist/index.js
+var dist = __nccwpck_require__(431);
+// EXTERNAL MODULE: ./node_modules/slackify-markdown/index.js
+var slackify_markdown = __nccwpck_require__(9418);
+var slackify_markdown_default = /*#__PURE__*/__nccwpck_require__.n(slackify_markdown);
 ;// CONCATENATED MODULE: ./src/shared.js
 
 
@@ -55979,15 +55984,12 @@ const Config = {
   isDryRun: (core.getInput("dry_run") || process.env.DRY_RUN) == "true",
   releaseSummary:
     core.getInput("release_summary") || process.env.RELEASE_SUMMARY || "",
+  releaseBranchPrefix: "release/",
+  hotfixBranchPrefix: "hotfix/",
 };
 
 ;// CONCATENATED MODULE: ./src/constants.js
 
-
-const Constants = {
-  Release: "release",
-  Hotfix: "hotfix",
-};
 
 const PR_EXPLAIN_MESSAGE = `Merging this pull request will trigger Gitflow release actions. A release would be created and ${
   Config.mergeBackFromProd ? `${Config.prodBranch}` : "this branch"
@@ -56060,16 +56062,17 @@ function isReleaseCandidate(pullRequest, shouldLog = false) {
     return false;
   }
 
-  if (pullRequest.labels.some((label) => label.name === Constants.Release)) {
+  if (pullRequest.head.ref.startsWith(Config.releaseBranchPrefix)) {
     return "release";
   }
 
-  if (pullRequest.labels.some((label) => label.name === Constants.Hotfix))
+  if (pullRequest.head.ref.startsWith(Config.hotfixBranchPrefix)) {
     return "hotfix";
+  }
 
   if (shouldLog)
     console.log(
-      `on-release: pull request does not have either ${Constants.Release} or ${Constants.Hotfix} labels. Exiting...`,
+      `on-release: pull request does not match either release or hotfix branch pattern. Exiting...`,
     );
   return false;
 }
@@ -56106,67 +56109,6 @@ async function createExplainComment(pullRequestNumber) {
  */
 const removeHtmlComments = (text) => text.replace(/<!--.*?-->/gs, "");
 
-;// CONCATENATED MODULE: ./src/labeler.js
-// @ts-check
-
-
-
-
-
-
-async function pullRequestAutoLabel() {
-  const pullRequestNumber = github.context.payload.pull_request?.number;
-  external_assert_default()(
-    pullRequestNumber,
-    `github.context.payload.pull_request?.number is not defined`,
-  );
-
-  const { data: pullRequest } = await octokit.rest.pulls.get({
-    ...Config.repo,
-    pull_number: pullRequestNumber,
-  });
-
-  if (pullRequest.head.ref.startsWith("hotfix/")) {
-    await octokit.rest.issues.addLabels({
-      ...Config.repo,
-      issue_number: pullRequest.number,
-      labels: [Constants.Hotfix],
-    });
-  } else if (pullRequest.head.ref.startsWith("release/")) {
-    await octokit.rest.issues.addLabels({
-      ...Config.repo,
-      issue_number: pullRequest.number,
-      labels: [Constants.Release],
-    });
-  }
-}
-
-async function pullRequestLabelExplainer() {
-  const pullRequestNumber = github.context.payload.pull_request?.number;
-  external_assert_default()(
-    pullRequestNumber,
-    `github.context.payload.pull_request?.number is not defined`,
-  );
-
-  const { data: pullRequest } = await octokit.rest.pulls.get({
-    ...Config.repo,
-    pull_number: pullRequestNumber,
-  });
-
-  if (isReleaseCandidate(pullRequest)) {
-    await octokit.rest.issues.createComment({
-      ...Config.repo,
-      issue_number: pullRequestNumber,
-      body: PR_EXPLAIN_MESSAGE,
-    });
-  }
-}
-
-// EXTERNAL MODULE: ./node_modules/@slack/web-api/dist/index.js
-var dist = __nccwpck_require__(431);
-// EXTERNAL MODULE: ./node_modules/slackify-markdown/index.js
-var slackify_markdown = __nccwpck_require__(9418);
-var slackify_markdown_default = /*#__PURE__*/__nccwpck_require__.n(slackify_markdown);
 ;// CONCATENATED MODULE: ./src/integration-slack.js
 // @ts-check
 
@@ -56237,6 +56179,13 @@ ${releaseBody}`,
  * @returns {Promise<import("./types.js").Result>}
  */
 async function executeOnRelease() {
+  if (Config.isDryRun) {
+    console.log(`on-release: dry run. Exiting...`);
+    return {
+      type: "none",
+    };
+  }
+
   if (!github.context.payload.pull_request?.merged) {
     console.log(`on-release: pull request is not merged. Exiting...`);
     return {
@@ -56273,7 +56222,7 @@ async function executeOnRelease() {
     /**
      * Creating a release
      */
-    version = currentBranch.substring("release/".length);
+    version = currentBranch.substring(Config.releaseBranchPrefix.length);
   } else if (releaseCandidateType === "hotfix") {
     /**
      * Creating a hotfix release
@@ -56289,7 +56238,9 @@ async function executeOnRelease() {
     ).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
   }
 
-  console.log(`on-release: release(${version}): Generating release notes`);
+  console.log(
+    `on-release: ${releaseCandidateType}(${version}): Generating release`,
+  );
 
   const pullRequestBody = pullRequest.body;
 
@@ -56342,7 +56293,6 @@ async function executeOnRelease() {
 
 
 
-
 /**
  * @returns {Promise<import("./types.js").Result>}
  */
@@ -56383,7 +56333,7 @@ async function createReleasePR() {
 ${Config.releaseSummary}
   `;
 
-  const releaseBranch = `release/${version}`;
+  const releaseBranch = `${Config.releaseBranchPrefix}${version}`;
   let pull_number;
 
   if (!isDryRun) {
@@ -56412,7 +56362,7 @@ ${Config.releaseSummary}
     await octokit.rest.issues.addLabels({
       ...Config.repo,
       issue_number: pullRequest.number,
-      labels: [Constants.Release],
+      labels: ["release"],
     });
 
     await createExplainComment(pullRequest.number);
@@ -56450,7 +56400,6 @@ ${Config.releaseSummary}
 
 
 
-
 const start = async () => {
   /**
    * @type {Result | undefined}
@@ -56458,23 +56407,14 @@ const start = async () => {
   console.log(`gitflow-workflow-action: running with config`, Config);
 
   let res;
-  if (github.context.eventName === "pull_request") {
-    if (github.context.payload.action === "closed") {
-      console.log(
-        `gitflow-workflow-action: Pull request closed. Running executeOnRelease...`,
-      );
-      res = await executeOnRelease();
-    } else if (github.context.payload.action === "opened") {
-      console.log(
-        `gitflow-workflow-action: Pull request opened. Running pullRequestAutoLabel...`,
-      );
-      await pullRequestAutoLabel();
-    } else if (github.context.payload.action === "labeled") {
-      console.log(
-        `gitflow-workflow-action: Pull request labeled. Running pullRequestLabelExplainer...`,
-      );
-      await pullRequestLabelExplainer();
-    }
+  if (
+    github.context.eventName === "pull_request" &&
+    github.context.payload.action === "closed"
+  ) {
+    console.log(
+      `gitflow-workflow-action: Pull request closed. Running executeOnRelease...`,
+    );
+    res = await executeOnRelease();
   } else if (github.context.eventName === "workflow_dispatch") {
     console.log(
       `gitflow-workflow-action: Workflow dispatched. Running createReleasePR...`,
@@ -56482,7 +56422,7 @@ const start = async () => {
     res = await createReleasePR();
   } else {
     console.log(
-      `gitflow-workflow-action: does not match any eventName. Skipping...`,
+      `gitflow-workflow-action: does not match any conditions to run. Skipping...`,
     );
   }
   if (res) {
