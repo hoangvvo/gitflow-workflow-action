@@ -18,6 +18,11 @@ export const Config = {
     repo: github.context.repo.repo,
   },
   version: core.getInput("version") || process.env.VERSION || "",
+  /**
+   * @type {import("semver").ReleaseType}
+   */
+  versionIncrement:
+    core.getInput("version_increment") || process.env.VERSION_INCREMENT || "",
   isDryRun: (core.getInput("dry_run") || process.env.DRY_RUN) == "true",
   releaseSummary:
     core.getInput("release_summary") || process.env.RELEASE_SUMMARY || "",

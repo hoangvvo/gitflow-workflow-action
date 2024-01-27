@@ -6,6 +6,10 @@ inputs:
     description: The version to be released
     required: false
     default: ""
+  version_increment:
+    description: The version increment to be released
+    required: false
+    default: ""
   develop_branch:
     description: The branch used for development
     required: true
