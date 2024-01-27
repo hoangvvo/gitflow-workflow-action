@@ -1,4 +1,5 @@
 // @ts-check
+import semverInc from "semver/functions/inc";
 import { Config, octokit } from "./shared.js";
 import { createExplainComment } from "./utils.js";
 
@@ -19,8 +20,6 @@ export async function createReleasePR() {
     `create_release: Generating release notes for ${developBranchSha}`,
   );
 
-  const version = Config.version || developBranchSha;
-
   // developBranch and mainBranch are almost identical
   // so we can use developBranch for ahead-of-time release note
   const { data: latestRelease } = await octokit.rest.repos
@@ -28,6 +27,28 @@ export async function createReleasePR() {
     .catch(() => ({ data: null }));
 
   const latest_release_tag_name = latestRelease?.tag_name;
+
+  /**
+   * @type {string}
+   */
+  let version;
+  if (Config.version) {
+    version = Config.version;
+  } else if (Config.versionIncrement) {
+    const increasedVersion = semverInc(
+      latest_release_tag_name || "0.0.0",
+      Config.versionIncrement,
+      { loose: true },
+    );
+    if (!increasedVersion) {
+      throw new Error(
+        `create_release: Could not increment version ${latest_release_tag_name} with ${Config.versionIncrement}`,
+      );
+    }
+    version = increasedVersion;
+  } else {
+    version = developBranchSha;
+  }
 
   const { data: releaseNotes } = await octokit.rest.repos.generateReleaseNotes({
     ...Config.repo,
