@@ -6,7 +6,7 @@
   "description": "A Github Action to automate merge to production PR",
   "main": "dist/index.js",
   "scripts": {
-    "test": "npx @github/local-action . src/index.ts .env",
+    "test": "npx @github/local-action . src/main.ts .env",
     "build": "tsc && npm run bundle",
     "bundle": "npx rollup --config rollup.config.js",
     "lint": "eslint src",
