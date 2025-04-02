@@ -10,7 +10,6 @@ const start = async () => {
 
   let res;
 
-  console.dir(github.context?.payload?.pull_request, { depth: null });
   if (
     github.context.eventName === "pull_request" &&
     github.context.payload.action === "closed"

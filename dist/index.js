@@ -48715,7 +48715,15 @@ async function executeOnRelease() {
             type: "none",
         };
     }
-    if (!githubExports.context.payload.pull_request?.merged) {
+    const pullRequest = githubExports.context.payload
+        .pull_request;
+    if (!pullRequest) {
+        console.log(`on-release: pull request is not defined. Exiting...`);
+        return {
+            type: "none",
+        };
+    }
+    if (!pullRequest.merged) {
         console.log(`on-release: pull request is not merged. Exiting...`);
         return {
             type: "none",
@@ -48725,12 +48733,8 @@ async function executeOnRelease() {
      * Precheck
      * Check if the pull request has a release label, targeting main branch, and if it was merged
      */
-    const pullRequestNumber = githubExports.context.payload.pull_request?.number;
+    const pullRequestNumber = pullRequest.number;
     require$$0$4(pullRequestNumber, `github.context.payload.pull_request?.number is not defined`);
-    const { data: pullRequest } = await octokit.rest.pulls.get({
-        ...Config.repo,
-        pull_number: pullRequestNumber,
-    });
     const releaseCandidateType = isReleaseCandidate(pullRequest, true);
     if (!releaseCandidateType)
         return {
@@ -49586,7 +49590,6 @@ ${Config.releaseSummary}
 const start = async () => {
     console.log(`gitflow-workflow-action: running with config`, Config);
     let res;
-    console.dir(githubExports.context?.payload?.pull_request, { depth: null });
     if (githubExports.context.eventName === "pull_request" &&
         githubExports.context.payload.action === "closed") {
         console.log(`gitflow-workflow-action: Pull request closed. Running executeOnRelease...`);

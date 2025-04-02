@@ -6,6 +6,8 @@ on:
         required: true
         description: "Version to release"
   pull_request:
+    types:
+      - closed
 
 name: Release
 
