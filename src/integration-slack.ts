@@ -1,14 +1,12 @@
-// @ts-check
+import type { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 import slackifyMarkdown from "slackify-markdown";
 import { Config } from "./shared.js";
 import { removeHtmlComments } from "./utils.js";
 
-/**
- *
- * @param {string} slackInput
- * @param {import("@octokit/plugin-rest-endpoint-methods").RestEndpointMethodTypes["repos"]["createRelease"]["response"]["data"] } release
- */
-export async function sendToSlack(slackInput, release) {
+export async function sendToSlack(
+  slackInput: string,
+  release: RestEndpointMethodTypes["repos"]["createRelease"]["response"]["data"],
+) {
   let slackOpts;
   try {
     slackOpts = JSON.parse(slackInput);

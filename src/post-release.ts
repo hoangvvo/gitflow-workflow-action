@@ -1,15 +1,12 @@
-// @ts-check
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import assert from "assert";
 import { sendToSlack } from "./integration-slack.js";
 import { Config, octokit } from "./shared.js";
+import { Result } from "./types.js";
 import { isReleaseCandidate, tryMerge } from "./utils.js";
 
-/**
- * @returns {Promise<import("./types.js").Result>}
- */
-async function executeOnRelease() {
+async function executeOnRelease(): Promise<Result> {
   if (Config.isDryRun) {
     console.log(`on-release: dry run. Exiting...`);
     return {
