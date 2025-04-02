@@ -5,9 +5,6 @@ import { createReleasePR } from "./release.js";
 import { Config } from "./shared.js";
 
 const start = async () => {
-  /**
-   * @type {Result | undefined}
-   */
   console.log(`gitflow-workflow-action: running with config`, Config);
 
   let res;
