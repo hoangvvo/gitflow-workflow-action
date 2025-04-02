@@ -1,12 +1,8 @@
+import { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 import { PR_EXPLAIN_MESSAGE } from "./constants.js";
 import { Config, octokit } from "./shared.js";
 
-/**
- *
- * @param {string} headBranch
- * @param {string} baseBranch
- */
-export async function tryMerge(headBranch, baseBranch) {
+export async function tryMerge(headBranch: string, baseBranch: string) {
   console.log(
     `Trying to merge ${headBranch} branch into ${baseBranch} branch.`,
   );
@@ -28,7 +24,7 @@ export async function tryMerge(headBranch, baseBranch) {
         base: baseBranch,
         head: headBranch,
       });
-    } catch (err) {
+    } catch {
       // could not automatically merge
       // try creating a PR
       await octokit.rest.pulls
@@ -51,11 +47,10 @@ See [Gitflow Workflow](https://www.atlassian.com/git/tutorials/comparing-workflo
   }
 }
 
-/**
- *
- * @param {import("@octokit/plugin-rest-endpoint-methods").RestEndpointMethodTypes["pulls"]["get"]["response"]["data"]} pullRequest
- */
-export function isReleaseCandidate(pullRequest, shouldLog = false) {
+export function isReleaseCandidate(
+  pullRequest: RestEndpointMethodTypes["pulls"]["get"]["response"]["data"],
+  shouldLog = false,
+) {
   if (pullRequest.base.ref !== Config.prodBranch) {
     if (shouldLog)
       console.log(
@@ -79,10 +74,7 @@ export function isReleaseCandidate(pullRequest, shouldLog = false) {
   return false;
 }
 
-/**
- * @param {number} pullRequestNumber
- */
-export async function createExplainComment(pullRequestNumber) {
+export async function createExplainComment(pullRequestNumber: number) {
   const existingComments = await octokit.rest.issues.listComments({
     ...Config.repo,
     issue_number: pullRequestNumber,
@@ -106,7 +98,5 @@ export async function createExplainComment(pullRequestNumber) {
   });
 }
 
-/**
- * @param {string} text
- */
-export const removeHtmlComments = (text) => text.replace(/<!--.*?-->/gs, "");
+export const removeHtmlComments = (text: string) =>
+  text.replace(/<!--.*?-->/gs, "");

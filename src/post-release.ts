@@ -1,15 +1,11 @@
-// @ts-check
-import * as core from "@actions/core";
 import * as github from "@actions/github";
 import assert from "assert";
-import { sendToSlack } from "./integration-slack";
+import { sendToSlack } from "./integration-slack.js";
 import { Config, octokit } from "./shared.js";
+import { Result, SlackIntegrationOptions } from "./types.js";
 import { isReleaseCandidate, tryMerge } from "./utils.js";
 
-/**
- * @returns {Promise<import("./types.js").Result>}
- */
-async function executeOnRelease() {
+async function executeOnRelease(): Promise<Result> {
   if (Config.isDryRun) {
     console.log(`on-release: dry run. Exiting...`);
     return {
@@ -100,12 +96,19 @@ async function executeOnRelease() {
   console.log(`on-release: success`);
 
   console.log(`post-release: process release ${release.name}`);
-  const slackInput = core.getInput("slack") || process.env.SLACK_OPTIONS;
-  if (slackInput) {
+  if (Config.slackOptionsStr) {
+    let slackOpts: SlackIntegrationOptions;
+    try {
+      slackOpts = JSON.parse(Config.slackOptionsStr);
+    } catch {
+      throw new Error(
+        `integration(slack): Could not parse ${Config.slackOptionsStr}`,
+      );
+    }
     /**
      * Slack integration
      */
-    await sendToSlack(slackInput, release);
+    await sendToSlack(slackOpts, release);
   }
 
   console.log(`post-release: success`);
