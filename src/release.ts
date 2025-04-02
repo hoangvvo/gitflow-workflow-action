@@ -1,12 +1,10 @@
 // @ts-check
-import semverInc from "semver/functions/inc";
+import semverInc from "semver/functions/inc.js";
 import { Config, octokit } from "./shared.js";
+import { Result } from "./types.js";
 import { createExplainComment } from "./utils.js";
 
-/**
- * @returns {Promise<import("./types.js").Result>}
- */
-export async function createReleasePR() {
+export async function createReleasePR(): Promise<Result> {
   const isDryRun = Config.isDryRun;
 
   const developBranchSha = (
@@ -28,10 +26,7 @@ export async function createReleasePR() {
 
   const latest_release_tag_name = latestRelease?.tag_name;
 
-  /**
-   * @type {string}
-   */
-  let version;
+  let version: string;
   if (Config.version) {
     version = Config.version;
   } else if (Config.versionIncrement) {

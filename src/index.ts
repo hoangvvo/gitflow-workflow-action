@@ -3,14 +3,13 @@ import * as github from "@actions/github";
 import { executeOnRelease } from "./post-release.js";
 import { createReleasePR } from "./release.js";
 import { Config } from "./shared.js";
+import { Result } from "./types.js";
 
 const start = async () => {
-  /**
-   * @type {Result | undefined}
-   */
   console.log(`gitflow-workflow-action: running with config`, Config);
 
   let res;
+
   if (
     github.context.eventName === "pull_request" &&
     github.context.payload.action === "closed"
@@ -34,7 +33,7 @@ const start = async () => {
       `gitflow-workflow-action: Setting output: ${JSON.stringify(res)}`,
     );
     for (const key of Object.keys(res)) {
-      core.setOutput(key, res[key]);
+      core.setOutput(key, res[key as keyof Result]);
     }
   }
 };

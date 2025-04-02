@@ -4,8 +4,10 @@
     "lib": ["es2022", "DOM"],
     "outDir": "dist",
     "rootDir": "./src",
-    "allowJs": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "moduleResolution": "node16",
+    "module": "Node16",
+    "noEmit": true
   },
   "include": ["./src/**/*"]
 }

@@ -1,5 +1,6 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
+import { ReleaseType } from "semver";
 
 const githubToken = process.env.GITHUB_TOKEN;
 if (!githubToken) throw new Error(`process.env.GITHUB_TOKEN is not defined`);
@@ -18,14 +19,13 @@ export const Config = {
     repo: github.context.repo.repo,
   },
   version: core.getInput("version") || process.env.VERSION || "",
-  /**
-   * @type {import("semver").ReleaseType}
-   */
-  versionIncrement:
-    core.getInput("version_increment") || process.env.VERSION_INCREMENT || "",
+  versionIncrement: (core.getInput("version_increment") ||
+    process.env.VERSION_INCREMENT ||
+    "") as ReleaseType,
   isDryRun: (core.getInput("dry_run") || process.env.DRY_RUN) == "true",
   releaseSummary:
     core.getInput("release_summary") || process.env.RELEASE_SUMMARY || "",
   releaseBranchPrefix: "release/",
   hotfixBranchPrefix: "hotfix/",
+  slackOptionsStr: core.getInput("slack") || process.env.SLACK_OPTIONS,
 };

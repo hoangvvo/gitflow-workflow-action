@@ -1,15 +1,12 @@
-// @ts-check
-import * as core from "@actions/core";
 import * as github from "@actions/github";
+import { components } from "@octokit/openapi-types";
 import assert from "assert";
-import { sendToSlack } from "./integration-slack";
+import { sendToSlack } from "./integration-slack.js";
 import { Config, octokit } from "./shared.js";
+import { Result, SlackIntegrationOptions } from "./types.js";
 import { isReleaseCandidate, tryMerge } from "./utils.js";
 
-/**
- * @returns {Promise<import("./types.js").Result>}
- */
-async function executeOnRelease() {
+async function executeOnRelease(): Promise<Result> {
   if (Config.isDryRun) {
     console.log(`on-release: dry run. Exiting...`);
     return {
@@ -17,7 +14,17 @@ async function executeOnRelease() {
     };
   }
 
-  if (!github.context.payload.pull_request?.merged) {
+  const pullRequest = github.context.payload
+    .pull_request as components["schemas"]["pull-request"];
+
+  if (!pullRequest) {
+    console.log(`on-release: pull request is not defined. Exiting...`);
+    return {
+      type: "none",
+    };
+  }
+
+  if (!pullRequest.merged) {
     console.log(`on-release: pull request is not merged. Exiting...`);
     return {
       type: "none",
@@ -28,16 +35,11 @@ async function executeOnRelease() {
    * Precheck
    * Check if the pull request has a release label, targeting main branch, and if it was merged
    */
-  const pullRequestNumber = github.context.payload.pull_request?.number;
+  const pullRequestNumber = pullRequest.number;
   assert(
     pullRequestNumber,
     `github.context.payload.pull_request?.number is not defined`,
   );
-
-  const { data: pullRequest } = await octokit.rest.pulls.get({
-    ...Config.repo,
-    pull_number: pullRequestNumber,
-  });
 
   const releaseCandidateType = isReleaseCandidate(pullRequest, true);
   if (!releaseCandidateType)
@@ -100,12 +102,19 @@ async function executeOnRelease() {
   console.log(`on-release: success`);
 
   console.log(`post-release: process release ${release.name}`);
-  const slackInput = core.getInput("slack") || process.env.SLACK_OPTIONS;
-  if (slackInput) {
+  if (Config.slackOptionsStr) {
+    let slackOpts: SlackIntegrationOptions;
+    try {
+      slackOpts = JSON.parse(Config.slackOptionsStr);
+    } catch {
+      throw new Error(
+        `integration(slack): Could not parse ${Config.slackOptionsStr}`,
+      );
+    }
     /**
      * Slack integration
      */
-    await sendToSlack(slackInput, release);
+    await sendToSlack(slackOpts, release);
   }
 
   console.log(`post-release: success`);
