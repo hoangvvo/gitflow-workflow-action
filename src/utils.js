@@ -28,7 +28,7 @@ export async function tryMerge(headBranch, baseBranch) {
         base: baseBranch,
         head: headBranch,
       });
-    } catch (err) {
+    } catch {
       // could not automatically merge
       // try creating a PR
       await octokit.rest.pulls

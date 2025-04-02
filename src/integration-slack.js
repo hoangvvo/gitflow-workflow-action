@@ -13,7 +13,7 @@ export async function sendToSlack(slackInput, release) {
   let slackOpts;
   try {
     slackOpts = JSON.parse(slackInput);
-  } catch (err) {
+  } catch {
     throw new Error(`integration(slack): Could not parse ${slackInput}`);
   }
   console.log(
