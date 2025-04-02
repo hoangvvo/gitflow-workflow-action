@@ -1,4 +1,5 @@
 import * as github from "@actions/github";
+import { components } from "@octokit/openapi-types";
 import assert from "assert";
 import { sendToSlack } from "./integration-slack.js";
 import { Config, octokit } from "./shared.js";
@@ -13,7 +14,17 @@ async function executeOnRelease(): Promise<Result> {
     };
   }
 
-  if (!github.context.payload.pull_request?.merged) {
+  const pullRequest = github.context.payload
+    .pull_request as components["schemas"]["pull-request"];
+
+  if (!pullRequest) {
+    console.log(`on-release: pull request is not defined. Exiting...`);
+    return {
+      type: "none",
+    };
+  }
+
+  if (!pullRequest.merged) {
     console.log(`on-release: pull request is not merged. Exiting...`);
     return {
       type: "none",
@@ -24,16 +35,11 @@ async function executeOnRelease(): Promise<Result> {
    * Precheck
    * Check if the pull request has a release label, targeting main branch, and if it was merged
    */
-  const pullRequestNumber = github.context.payload.pull_request?.number;
+  const pullRequestNumber = pullRequest.number;
   assert(
     pullRequestNumber,
     `github.context.payload.pull_request?.number is not defined`,
   );
-
-  const { data: pullRequest } = await octokit.rest.pulls.get({
-    ...Config.repo,
-    pull_number: pullRequestNumber,
-  });
 
   const releaseCandidateType = isReleaseCandidate(pullRequest, true);
   if (!releaseCandidateType)

@@ -9,6 +9,7 @@ const start = async () => {
   console.log(`gitflow-workflow-action: running with config`, Config);
 
   let res;
+
   if (
     github.context.eventName === "pull_request" &&
     github.context.payload.action === "closed"
