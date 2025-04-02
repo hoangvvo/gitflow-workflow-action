@@ -113,7 +113,7 @@ jobs:
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
 ```
 
-## Example: Prefill release summary
+## Example: Prefill release summary and version increment
 
 Using the `pull_numbers_in_release` output and dry run mode, you can prefill the PR body with the release summary depending on your PR template.
 
@@ -135,6 +135,12 @@ xxx
 ## Any background context you want to provide beyond Shortcut?
 
 xxx
+
+## This pull request is a
+
+- [ ] Patch change
+- [ ] Minor change
+- [ ] Major change
 
 ## Screenshots (if appropriate)
 
@@ -181,11 +187,26 @@ jobs:
               match = match?.split('\n').map(s => s.trim()).filter(Boolean).map(
                 s => s.startsWith('-') || s.startsWith('*') ? s : `* ${s}`
               ).join('\n');
-              return `${pr.data.title}\n${match}`;
+
+              let type = 0 // patch
+              if (body.includes("[x] Major")) {
+                type = 2 // major
+              } else if (body.includes("[x] Minor")) {
+                type = 1 // minor
+              }
+
+              return {
+                summary: `${pr.data.title}\n${match}`,
+                type,
+              }
             })).then((prs) => prs.filter(Boolean));
-            const releaseSummary = mergedPrs.join('\n\n');
-            return resultSummary;
-          result-encoding: string
+
+            const releaseSummary = mergedPrs.map((pr) => pr.summary).join('\n\n');
+            core.setOutput('release_summary', releaseSummary);
+
+            const versionIncrementType = Math.max(...mergedPrs.map((pr) => pr.type));
+            const versionIncrement = ['patch', 'minor', 'major'][versionIncrementType] || 'patch';
+            core.setOutput('version_increment', versionIncrement);
 
       - id: release_workflow
         name: gitflow-workflow-action release workflows
@@ -194,7 +215,8 @@ jobs:
           develop_branch: "develop"
           main_branch: "main"
           version: ${{ inputs.version }}
-          release_summary: ${{ steps.generate_pr_summary.outputs.result }}
+          release_summary: ${{ steps.generate_pr_summary.outputs.release_summary }}
+          version_increment: ${{ steps.generate_pr_summary.outputs.version_increment }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
