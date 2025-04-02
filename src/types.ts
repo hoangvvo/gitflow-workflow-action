@@ -7,3 +7,11 @@ export type Result = {
   release_url?: string;
   latest_release_tag_name?: string;
 };
+
+export type SlackIntegrationOptions = {
+  channel: string;
+  username_mapping?: {
+    [githubUsername: string]: string;
+  };
+  icon_url?: string;
+};

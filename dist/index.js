@@ -48660,14 +48660,7 @@ async function createExplainComment(pullRequestNumber) {
 }
 const removeHtmlComments = (text) => text.replace(/<!--.*?-->/gs, "");
 
-async function sendToSlack(slackInput, release) {
-    let slackOpts;
-    try {
-        slackOpts = JSON.parse(slackInput);
-    }
-    catch {
-        throw new Error(`integration(slack): Could not parse ${slackInput}`);
-    }
+async function sendToSlack(slackOpts, release) {
     console.log(`integration(slack): Posting to slack channel #${slackOpts.channel}`);
     const slackToken = process.env.SLACK_TOKEN;
     if (!slackToken)
@@ -48769,10 +48762,17 @@ async function executeOnRelease() {
     console.log(`post-release: process release ${release.name}`);
     const slackInput = coreExports.getInput("slack") || process.env.SLACK_OPTIONS;
     if (slackInput) {
+        let slackOpts;
+        try {
+            slackOpts = JSON.parse(slackInput);
+        }
+        catch {
+            throw new Error(`integration(slack): Could not parse ${slackInput}`);
+        }
         /**
          * Slack integration
          */
-        await sendToSlack(slackInput, release);
+        await sendToSlack(slackOpts, release);
     }
     console.log(`post-release: success`);
     return {

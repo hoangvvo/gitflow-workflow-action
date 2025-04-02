@@ -3,7 +3,7 @@ import * as github from "@actions/github";
 import assert from "assert";
 import { sendToSlack } from "./integration-slack.js";
 import { Config, octokit } from "./shared.js";
-import { Result } from "./types.js";
+import { Result, SlackIntegrationOptions } from "./types.js";
 import { isReleaseCandidate, tryMerge } from "./utils.js";
 
 async function executeOnRelease(): Promise<Result> {
@@ -99,10 +99,16 @@ async function executeOnRelease(): Promise<Result> {
   console.log(`post-release: process release ${release.name}`);
   const slackInput = core.getInput("slack") || process.env.SLACK_OPTIONS;
   if (slackInput) {
+    let slackOpts: SlackIntegrationOptions;
+    try {
+      slackOpts = JSON.parse(slackInput);
+    } catch {
+      throw new Error(`integration(slack): Could not parse ${slackInput}`);
+    }
     /**
      * Slack integration
      */
-    await sendToSlack(slackInput, release);
+    await sendToSlack(slackOpts, release);
   }
 
   console.log(`post-release: success`);

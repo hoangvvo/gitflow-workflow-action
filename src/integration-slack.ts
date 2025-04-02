@@ -1,19 +1,13 @@
 import type { RestEndpointMethodTypes } from "@octokit/plugin-rest-endpoint-methods";
 import slackifyMarkdown from "slackify-markdown";
 import { Config } from "./shared.js";
+import { SlackIntegrationOptions } from "./types.js";
 import { removeHtmlComments } from "./utils.js";
 
 export async function sendToSlack(
-  slackInput: string,
+  slackOpts: SlackIntegrationOptions,
   release: RestEndpointMethodTypes["repos"]["createRelease"]["response"]["data"],
 ) {
-  let slackOpts;
-  try {
-    slackOpts = JSON.parse(slackInput);
-  } catch {
-    throw new Error(`integration(slack): Could not parse ${slackInput}`);
-  }
-
   console.log(
     `integration(slack): Posting to slack channel #${slackOpts.channel}`,
   );
