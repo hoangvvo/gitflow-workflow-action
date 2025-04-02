@@ -7,7 +7,7 @@
   "main": "dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "npm run bundle",
+    "build": "tsc && npm run bundle",
     "bundle": "npx rollup --config rollup.config.js",
     "lint": "eslint src",
     "prepare": "npm run build"
@@ -25,7 +25,6 @@
   "dependencies": {
     "@actions/core": "^1.11.1",
     "@actions/github": "^6.0.0",
-    "@slack/web-api": "^7.9.1",
     "semver": "^7.7.1",
     "slackify-markdown": "^4.4.0"
   },

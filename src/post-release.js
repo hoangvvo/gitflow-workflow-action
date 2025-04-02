@@ -2,7 +2,7 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import assert from "assert";
-import { sendToSlack } from "./integration-slack";
+import { sendToSlack } from "./integration-slack.js";
 import { Config, octokit } from "./shared.js";
 import { isReleaseCandidate, tryMerge } from "./utils.js";
 

@@ -1,5 +1,4 @@
 // @ts-check
-import { WebClient as SlackWebClient } from "@slack/web-api";
 import slackifyMarkdown from "slackify-markdown";
 import { Config } from "./shared.js";
 import { removeHtmlComments } from "./utils.js";
@@ -16,18 +15,16 @@ export async function sendToSlack(slackInput, release) {
   } catch {
     throw new Error(`integration(slack): Could not parse ${slackInput}`);
   }
+
   console.log(
     `integration(slack): Posting to slack channel #${slackOpts.channel}`,
   );
+
   const slackToken = process.env.SLACK_TOKEN;
   if (!slackToken) throw new Error("process.env.SLACK_TOKEN is not defined");
 
-  const slackWebClient = new SlackWebClient(slackToken);
-
   let releaseBody = release.body || "";
-
   releaseBody = removeHtmlComments(releaseBody);
-
   releaseBody = slackifyMarkdown(releaseBody);
 
   // rewrite changelog entries to format
@@ -42,14 +39,30 @@ export async function sendToSlack(slackInput, release) {
     releaseBody = releaseBody.replaceAll(`@${username}`, `<@${slackUserId}>`);
   }
 
-  await slackWebClient.chat.postMessage({
-    text: `<${release.html_url}|Release ${
-      release.name || release.tag_name
-    }> to \`${Config.repo.owner}/${Config.repo.repo}\`
-
-${releaseBody}`,
+  const messagePayload = {
+    text: `<${release.html_url}|Release ${release.name || release.tag_name}> to \`${Config.repo.owner}/${Config.repo.repo}\`\n\n${releaseBody}`,
     channel: slackOpts.channel,
-    icon_url: "https://avatars.githubusercontent.com/in/15368?s=88&v=4",
+    icon_url:
+      slackOpts.icon_url ||
+      "https://avatars.githubusercontent.com/in/15368?s=88&v=4",
     mrkdwn: true,
+  };
+
+  // https://api.slack.com/methods/chat.postMessage
+  const response = await fetch("https://slack.com/api/chat.postMessage", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${slackToken}`,
+    },
+    body: JSON.stringify(messagePayload),
   });
+
+  const result = await response.json();
+
+  if (!result.ok) {
+    throw new Error(`Slack API Error: ${result.error}`);
+  }
+
+  return result;
 }
