@@ -1,4 +1,3 @@
-import * as core from "@actions/core";
 import * as github from "@actions/github";
 import assert from "assert";
 import { sendToSlack } from "./integration-slack.js";
@@ -97,13 +96,14 @@ async function executeOnRelease(): Promise<Result> {
   console.log(`on-release: success`);
 
   console.log(`post-release: process release ${release.name}`);
-  const slackInput = core.getInput("slack") || process.env.SLACK_OPTIONS;
-  if (slackInput) {
+  if (Config.slackOptionsStr) {
     let slackOpts: SlackIntegrationOptions;
     try {
-      slackOpts = JSON.parse(slackInput);
+      slackOpts = JSON.parse(Config.slackOptionsStr);
     } catch {
-      throw new Error(`integration(slack): Could not parse ${slackInput}`);
+      throw new Error(
+        `integration(slack): Could not parse ${Config.slackOptionsStr}`,
+      );
     }
     /**
      * Slack integration

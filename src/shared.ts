@@ -27,4 +27,5 @@ export const Config = {
     core.getInput("release_summary") || process.env.RELEASE_SUMMARY || "",
   releaseBranchPrefix: "release/",
   hotfixBranchPrefix: "hotfix/",
+  slackOptionsStr: core.getInput("slack") || process.env.SLACK_OPTIONS,
 };
