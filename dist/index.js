@@ -314,11 +314,11 @@ function requireProxy () {
 	    })();
 	    if (proxyVar) {
 	        try {
-	            return new URL(proxyVar);
+	            return new DecodedURL(proxyVar);
 	        }
 	        catch (_a) {
 	            if (!proxyVar.startsWith('http://') && !proxyVar.startsWith('https://'))
-	                return new URL(`http://${proxyVar}`);
+	                return new DecodedURL(`http://${proxyVar}`);
 	        }
 	    }
 	    else {
@@ -376,6 +376,19 @@ function requireProxy () {
 	        hostLower.startsWith('127.') ||
 	        hostLower.startsWith('[::1]') ||
 	        hostLower.startsWith('[0:0:0:0:0:0:0:1]'));
+	}
+	class DecodedURL extends URL {
+	    constructor(url, base) {
+	        super(url, base);
+	        this._decodedUsername = decodeURIComponent(super.username);
+	        this._decodedPassword = decodeURIComponent(super.password);
+	    }
+	    get username() {
+	        return this._decodedUsername;
+	    }
+	    get password() {
+	        return this._decodedPassword;
+	    }
 	}
 	
 	return proxy;
@@ -24639,7 +24652,7 @@ function requireLib$2 () {
 	        if (this._keepAlive && useProxy) {
 	            agent = this._proxyAgent;
 	        }
-	        if (this._keepAlive && !useProxy) {
+	        if (!useProxy) {
 	            agent = this._agent;
 	        }
 	        // if agent is already assigned use that agent.
@@ -24671,15 +24684,11 @@ function requireLib$2 () {
 	            agent = tunnelAgent(agentOptions);
 	            this._proxyAgent = agent;
 	        }
-	        // if reusing agent across request and tunneling agent isn't assigned create a new agent
-	        if (this._keepAlive && !agent) {
+	        // if tunneling agent isn't assigned create a new agent
+	        if (!agent) {
 	            const options = { keepAlive: this._keepAlive, maxSockets };
 	            agent = usingSsl ? new https.Agent(options) : new http.Agent(options);
 	            this._agent = agent;
-	        }
-	        // if not using private agent and tunnel agent isn't setup then use global agent
-	        if (!agent) {
-	            agent = usingSsl ? https.globalAgent : http.globalAgent;
 	        }
 	        if (usingSsl && this._ignoreSslError) {
 	            // we don't want to set NODE_TLS_REJECT_UNAUTHORIZED=0 since that will affect request for entire process
@@ -24702,7 +24711,7 @@ function requireLib$2 () {
 	        }
 	        const usingSsl = parsedUrl.protocol === 'https:';
 	        proxyAgent = new undici_1.ProxyAgent(Object.assign({ uri: proxyUrl.href, pipelining: !this._keepAlive ? 0 : 1 }, ((proxyUrl.username || proxyUrl.password) && {
-	            token: `${proxyUrl.username}:${proxyUrl.password}`
+	            token: `Basic ${Buffer.from(`${proxyUrl.username}:${proxyUrl.password}`).toString('base64')}`
 	        })));
 	        this._proxyAgentDispatcher = proxyAgent;
 	        if (usingSsl && this._ignoreSslError) {
@@ -48584,6 +48593,7 @@ const Config = {
     releaseSummary: coreExports.getInput("release_summary") || process.env.RELEASE_SUMMARY || "",
     releaseBranchPrefix: "release/",
     hotfixBranchPrefix: "hotfix/",
+    slackOptionsStr: coreExports.getInput("slack") || process.env.SLACK_OPTIONS,
 };
 
 const PR_EXPLAIN_MESSAGE = `Merging this pull request will trigger Gitflow release actions. A release would be created and ${Config.mergeBackFromProd ? `${Config.prodBranch}` : "this branch"} would be merged back to ${Config.developBranch} if needed.
@@ -48760,14 +48770,13 @@ async function executeOnRelease() {
     await tryMerge(Config.mergeBackFromProd ? Config.prodBranch : currentBranch, Config.developBranch);
     console.log(`on-release: success`);
     console.log(`post-release: process release ${release.name}`);
-    const slackInput = coreExports.getInput("slack") || process.env.SLACK_OPTIONS;
-    if (slackInput) {
+    if (Config.slackOptionsStr) {
         let slackOpts;
         try {
-            slackOpts = JSON.parse(slackInput);
+            slackOpts = JSON.parse(Config.slackOptionsStr);
         }
         catch {
-            throw new Error(`integration(slack): Could not parse ${slackInput}`);
+            throw new Error(`integration(slack): Could not parse ${Config.slackOptionsStr}`);
         }
         /**
          * Slack integration
@@ -49577,6 +49586,7 @@ ${Config.releaseSummary}
 const start = async () => {
     console.log(`gitflow-workflow-action: running with config`, Config);
     let res;
+    console.dir(githubExports.context?.payload?.pull_request, { depth: null });
     if (githubExports.context.eventName === "pull_request" &&
         githubExports.context.payload.action === "closed") {
         console.log(`gitflow-workflow-action: Pull request closed. Running executeOnRelease...`);
