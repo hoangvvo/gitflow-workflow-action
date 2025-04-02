@@ -48601,11 +48601,19 @@ See [Gitflow Workflow](https://www.atlassian.com/git/tutorials/comparing-workflo
 
 async function tryMerge(headBranch, baseBranch) {
     console.log(`Trying to merge ${headBranch} branch into ${baseBranch} branch.`);
-    const { data: compareCommitsResult } = await octokit.rest.repos.compareCommits({
-        ...Config.repo,
-        base: baseBranch,
-        head: headBranch,
-    });
+    let compareCommitsResult;
+    try {
+        const { data } = await octokit.rest.repos.compareCommits({
+            ...Config.repo,
+            base: baseBranch,
+            head: headBranch,
+        });
+        compareCommitsResult = data;
+    }
+    catch (error) {
+        console.error(`Error comparing commits: ${error}. Skipping merge.`);
+        return;
+    }
     if (compareCommitsResult.status !== "identical") {
         console.log(`${headBranch} branch is not up to date with ${baseBranch} branch. Attempting to merge.`);
         try {
