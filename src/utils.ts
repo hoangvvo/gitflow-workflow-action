@@ -7,12 +7,19 @@ export async function tryMerge(headBranch: string, baseBranch: string) {
     `Trying to merge ${headBranch} branch into ${baseBranch} branch.`,
   );
 
-  const { data: compareCommitsResult } =
-    await octokit.rest.repos.compareCommits({
+  let compareCommitsResult;
+
+  try {
+    const { data } = await octokit.rest.repos.compareCommits({
       ...Config.repo,
       base: baseBranch,
       head: headBranch,
     });
+    compareCommitsResult = data;
+  } catch (error) {
+    console.error(`Error comparing commits: ${error}. Skipping merge.`);
+    return;
+  }
 
   if (compareCommitsResult.status !== "identical") {
     console.log(
